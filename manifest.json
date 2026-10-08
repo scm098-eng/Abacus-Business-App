@@ -1,0 +1,32 @@
+{
+  "short_name": "Smaartus",
+  "name": "Smaartus Operations",
+  "id": "/Abacus-Business-App/",
+  "start_url": "/Abacus-Business-App/index.html",
+  "scope": "/Abacus-Business-App/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "ChatGPT Image Oct 8, 2026, 01_56_53 PM-onlinecloudtools.com-h2s2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "ChatGPT Image Oct 8, 2026, 01_56_53 PM-onlinecloudtools.com-h2s2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "ChatGPT Image Oct 8, 2026, 01_56_53 PM-onlinecloudtools.com-h2s2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
