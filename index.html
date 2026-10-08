@@ -1492,9 +1492,9 @@
       const config = courseConfig[s.course] || Object.values(courseConfig)[0] || { baseMonths: 3, baseFee: 3000, extensionFee: 800 };
       const overdueMonths = completedMonths > config.baseMonths ? completedMonths - config.baseMonths : 0;
 
-      const m1 = `🧮 *[${appConfig.appName || "Smaartus Operations"}] Monthly Progress Update*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\n*${s.firstName}* has completed Month ${completedMonths} of ${config.baseMonths} for ${s.course} (${s.level}).\n\nThank you,\n*${appConfig.appName || "Smaartus Operations"}*`;
-      const m2 = `📋 *[${appConfig.appName || "Smaartus Operations"}] Extension Fee Notice*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\n*${s.firstName}* has entered Extension Month ${overdueMonths || 1} for ${s.course}.\n\n• Extension Fee Due: ₹${config.extensionFee}\n\nThank you!`;
-      const m3 = `🎉 *Happy Birthday ${s.firstName}!* 🎂\n\nWishing you a joyful birthday filled with happiness! Keep shining with us at ${appConfig.appName || "Smaartus Operations"}!`;
+      const m1 = `🧮 *[${appConfig.appName || "Smaartus Classes"}] Monthly Progress Update*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\nWe are pleased to inform you that *${s.firstName}* has successfully completed Month ${completedMonths} of ${config.baseMonths} for ${s.course} (${s.level}).\n\nThank you for your continued support!\n*${appConfig.appName || "Smaartus Classes"}*`;
+      const m2 = `📋 *[${appConfig.appName || "Smaartus Classes"}] Extension Fee Notice*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\nThis is a friendly reminder that *${s.firstName}* has entered Extension Month ${overdueMonths || 1} for ${s.course}.\n\n• *Extension Fee Due:* ₹${config.extensionFee}\n\nPlease settle the fee at your earliest convenience to continue seamless learning.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
+      const m3 = `🎉 *Happy Birthday, ${s.firstName}!* 🎂\n\nWishing you a fantastic birthday filled with joy and excitement! Keep reaching for the stars with us at *${appConfig.appName || "Smaartus Classes"}*! 🌟`;
 
       container.innerHTML = `
         <button onclick="triggerWA('${s.mobile}', \`${encodeURIComponent(m1)}\`)" class="w-full text-left p-3 border border-slate-700/80 rounded-xl text-xs hover:bg-slate-700/50 transition">
@@ -1671,7 +1671,7 @@
       renderLedger();
       generateAllReports();
 
-      const msg = `Dear Parent, Congratulations! ${s.firstName} has been successfully promoted to ${nextLevel} at ${appConfig.appName || "Smaartus Operations"}. The base course fee for ${nextLevel} is ₹${feeAmount}. Thank you!`;
+      const msg = `🎉 *[${appConfig.appName || "Smaartus Classes"}] Promotion & Fee Notice*\n\nDear Parent,\n\nCongratulations! *${s.firstName}* has successfully completed Level 1 and been promoted to *${nextLevel}*.\n\n• *Course Fee for ${nextLevel}:* ₹${feeAmount}\n\nKindly process the payment at your earliest convenience to confirm enrollment.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
       window.open(`https://wa.me/91${s.mobile}?text=${encodeURIComponent(msg)}`, '_blank');
       showToast("Student promoted & Fee logged into Ledger!");
     }
