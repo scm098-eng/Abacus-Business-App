@@ -965,6 +965,13 @@
   </div>
 
   <script>
+    /* --- PWA SERVICE WORKER REGISTRATION --- */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Registration failed:', err));
+      });
+    }
+
     /* --- CONSTANTS & CONFIGURATION --- */
     let activePin = localStorage.getItem('smaartus_admin_pin') || "1234";
     let biometricEnabled = localStorage.getItem('smaartus_biometric_enabled') !== "false";
