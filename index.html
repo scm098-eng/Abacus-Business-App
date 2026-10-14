@@ -1118,8 +1118,8 @@ function initGoogleDriveOAuth() {
 
 function connectGoogleDriveOAuth() {
   if (initGoogleDriveOAuth()) {
-    // Removed 'consent' to prevent Google from showing repeated approval screens
-    tokenClient.requestAccessToken({ prompt: '' });
+    // Use prompt: 'none' for existing sessions, falling back gracefully to select_account if token needs renewal
+    tokenClient.requestAccessToken({ prompt: 'select_account' });
   }
 }
 
