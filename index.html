@@ -972,13 +972,14 @@
     let biometricEnabled = true;
     let enteredPin = "";
 
-    let appConfig = {
+    let appConfig = JSON.parse(localStorage.getItem('smaartus_app_config')) || {
       appName: "Smaartus Operations",
       googleClientId: "480949134416-a4ccntu2pgmvp78pdvgmndns6sf3doqf.apps.googleusercontent.com",
       googleAccount: "",
       autoDriveBackup: true,
       lastBackupDate: ""
     };
+    appConfig.googleClientId = "480949134416-a4ccntu2pgmvp78pdvgmndns6sf3doqf.apps.googleusercontent.com";
 
     let driveAccessToken = localStorage.getItem('smaartus_gdrive_token') || "";
     let tokenClient = null;
@@ -1088,29 +1089,26 @@ function initGoogleDriveOAuth() {
     scope: 'https://www.googleapis.com/auth/drive.file',
     callback: (tokenResponse) => {
       if (tokenResponse.access_token) {
-        driveAccessToken = tokenResponse.access_token;
-        // Saved in localStorage so app stays connected after page refresh
-        localStorage.setItem('smaartus_gdrive_token', driveAccessToken);
-        
-        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { 'Authorization': `Bearer ${driveAccessToken}` }
-        })
-        .then(res => res.json())
-        .then(profile => {
-          if (profile.email) {
-            appConfig.googleAccount = profile.email;
-            localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
-            applyAppConfigUI();
-            showToast(`Connected to Google Drive (${profile.email})`);
-            restoreFromGoogleDrive();
+            driveAccessToken = tokenResponse.access_token;
+            localStorage.setItem('smaartus_gdrive_token', driveAccessToken);
+            
+            fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { 'Authorization': `Bearer ${driveAccessToken}` }
+            })
+            .then(res => res.json())
+            .then(profile => {
+              appConfig.googleAccount = profile.email || "Authorized User";
+              localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
+              applyAppConfigUI(); // Immediate UI status text update
+              showToast(`Connected to Google Drive (${appConfig.googleAccount})`);
+              restoreFromGoogleDrive();
+            }).catch(() => {
+              appConfig.googleAccount = "Authorized User";
+              localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
+              applyAppConfigUI(); // Immediate UI status text update
+              restoreFromGoogleDrive();
+            });
           }
-        }).catch(() => {
-          appConfig.googleAccount = "Authorized User";
-          localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
-          applyAppConfigUI();
-          restoreFromGoogleDrive();
-        });
-      }
     },
   });
   return true;
@@ -1217,11 +1215,18 @@ function connectGoogleDriveOAuth() {
           if (backupData.categoriesConfig) categoriesConfig = backupData.categoriesConfig;
           if (backupData.customFields) customFields = backupData.customFields;
 
+          if (backupData.appConfig && backupData.appConfig.googleAccount) {
+            appConfig.googleAccount = backupData.appConfig.googleAccount;
+          }
+          localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
+          
+          applyAppConfigUI(); // Ensures settings UI reflects 'Connected' immediately
           renderStudents();
           renderLedger();
           generateAllReports();
           showToast("Data restored directly from Google Drive!");
         } else {
+          applyAppConfigUI();
           showToast("No existing cloud backup file found on Google Drive.");
         }
       } catch (err) {
