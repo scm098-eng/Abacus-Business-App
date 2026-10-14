@@ -980,7 +980,7 @@
       lastBackupDate: ""
     };
 
-    let driveAccessToken = sessionStorage.getItem('smaartus_gdrive_token') || "";
+    let driveAccessToken = localStorage.getItem('smaartus_gdrive_token') || "";
     let tokenClient = null;
 
     let courseConfig = {
@@ -1071,52 +1071,57 @@
     }
 
     /* --- GOOGLE DRIVE DIRECT CLOUD STORAGE ENGINE --- */
-    function initGoogleDriveOAuth() {
-      if (!appConfig.googleClientId) {
-        showToast("OAuth Client ID is missing.");
-        return false;
-      }
 
-      if (typeof google === 'undefined' || !google.accounts) {
-        showToast("Google Identity Services library loading... try again.");
-        return false;
-      }
+function initGoogleDriveOAuth() {
+  if (!appConfig.googleClientId) {
+    showToast("OAuth Client ID is missing.");
+    return false;
+  }
 
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: appConfig.googleClientId,
-        scope: 'https://www.googleapis.com/auth/drive.file',
-        callback: (tokenResponse) => {
-          if (tokenResponse.access_token) {
-            driveAccessToken = tokenResponse.access_token;
-            sessionStorage.setItem('smaartus_gdrive_token', driveAccessToken);
-            
-            fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-              headers: { 'Authorization': `Bearer ${driveAccessToken}` }
-            })
-            .then(res => res.json())
-            .then(profile => {
-              if (profile.email) {
-                appConfig.googleAccount = profile.email;
-                applyAppConfigUI();
-                showToast(`Connected to Google Drive (${profile.email})`);
-                restoreFromGoogleDrive();
-              }
-            }).catch(() => {
-              appConfig.googleAccount = "Authorized User";
-              applyAppConfigUI();
-              restoreFromGoogleDrive();
-            });
+  if (typeof google === 'undefined' || !google.accounts) {
+    showToast("Google Identity Services library loading... try again.");
+    return false;
+  }
+
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: appConfig.googleClientId,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    callback: (tokenResponse) => {
+      if (tokenResponse.access_token) {
+        driveAccessToken = tokenResponse.access_token;
+        // Saved in localStorage so app stays connected after page refresh
+        localStorage.setItem('smaartus_gdrive_token', driveAccessToken);
+        
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { 'Authorization': `Bearer ${driveAccessToken}` }
+        })
+        .then(res => res.json())
+        .then(profile => {
+          if (profile.email) {
+            appConfig.googleAccount = profile.email;
+            localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
+            applyAppConfigUI();
+            showToast(`Connected to Google Drive (${profile.email})`);
+            restoreFromGoogleDrive();
           }
-        },
-      });
-      return true;
-    }
-
-    function connectGoogleDriveOAuth() {
-      if (initGoogleDriveOAuth()) {
-        tokenClient.requestAccessToken({ prompt: 'consent' });
+        }).catch(() => {
+          appConfig.googleAccount = "Authorized User";
+          localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
+          applyAppConfigUI();
+          restoreFromGoogleDrive();
+        });
       }
-    }
+    },
+  });
+  return true;
+}
+
+function connectGoogleDriveOAuth() {
+  if (initGoogleDriveOAuth()) {
+    // Removed 'consent' to prevent Google from showing repeated approval screens
+    tokenClient.requestAccessToken({ prompt: '' });
+  }
+}
 
     async function syncDataToGoogleDrive(isManual = false) {
       if (!driveAccessToken) {
