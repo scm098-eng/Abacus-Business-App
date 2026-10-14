@@ -646,12 +646,7 @@
                 <span class="text-slate-300 text-[11px]">Auto Daily Backup</span>
               </label>
             </div>
-            
-            <div>
-              <label class="block text-slate-400 mb-0.5">Google Cloud OAuth Client ID</label>
-              <input type="text" id="settingGoogleClientId" placeholder="XXXXXX.apps.googleusercontent.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white font-mono text-[10px]" />
-            </div>
-
+                        
             <div id="googleAccountStatus" class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800 mt-1 gap-2">
               <span id="googleAccountText" class="text-slate-300 text-xs font-mono truncate">Not Connected</span>
               <div class="flex space-x-1.5 shrink-0">
@@ -972,53 +967,40 @@
       });
     }
 
-    /* --- CONSTANTS & CONFIGURATION --- */
-    let activePin = localStorage.getItem('smaartus_admin_pin') || "1234";
-    let biometricEnabled = localStorage.getItem('smaartus_biometric_enabled') !== "false";
+    /* --- APPLICATION IN-MEMORY STATE (NO LOCAL STORAGE FOR DATA) --- */
+    let activePin = "1234";
+    let biometricEnabled = true;
     let enteredPin = "";
 
-    let appConfig = JSON.parse(localStorage.getItem('smaartus_app_config')) || {
+    let appConfig = {
       appName: "Smaartus Operations",
       googleClientId: "480949134416-a4ccntu2pgmvp78pdvgmndns6sf3doqf.apps.googleusercontent.com",
       googleAccount: "",
-      autoDriveBackup: false,
+      autoDriveBackup: true,
       lastBackupDate: ""
     };
 
-    let driveAccessToken = localStorage.getItem('smaartus_gdrive_token') || "";
+    let driveAccessToken = sessionStorage.getItem('smaartus_gdrive_token') || "";
     let tokenClient = null;
 
-    let courseConfig = JSON.parse(localStorage.getItem('smaartus_course_config')) || {
+    let courseConfig = {
       "Abacus": { baseMonths: 3, registrationFee: 1500, baseFee: 3500, extensionFee: 800 },
       "Vedic Maths": { baseMonths: 4, registrationFee: 0, baseFee: 4000, extensionFee: 900 },
       "Rubik Cube": { baseMonths: 2, registrationFee: 0, baseFee: 2500, extensionFee: 700 }
     };
 
-    let categoriesConfig = JSON.parse(localStorage.getItem('smaartus_categories_config')) || {
+    let categoriesConfig = {
       income: ["Registration Fee", "Base Course Fee", "Extension Monthly Fee", "Book & Kit Fee", "Other Income"],
       expense: ["Center Rent", "Faculty Salary", "Utilities & Electricity", "Equipment & Supplies", "Marketing & Print", "Other Expense"]
     };
 
-    let customFields = JSON.parse(localStorage.getItem('smaartus_custom_fields')) || [];
-    let readNotifsState = JSON.parse(localStorage.getItem('smaartus_read_notifs')) || { lastReadDate: "" };
+    let customFields = [];
+    let readNotifsState = { lastReadDate: "" };
 
-    let students = JSON.parse(localStorage.getItem('smaartus_students')) || [
-      { id: "STD-101", firstName: "Aarav", middleName: "Rajesh", surname: "Sharma", mobile: "9820011223", dob: "2018-04-12", school: "St. Xavier High School", branch: "Sanpada", course: "Abacus", level: "Level 1", startDate: "2026-06-01", address: "Sector 5, Sanpada", customData: {} },
-      { id: "STD-102", firstName: "Ananya", middleName: "Suresh", surname: "Patil", mobile: "9833445566", dob: "2016-10-08", school: "Ryan International", branch: "Juinagar", course: "Abacus", level: "Level 2", startDate: "2026-05-10", address: "Sector 11, Juinagar", customData: {} },
-      { id: "STD-103", firstName: "Vihaan", middleName: "Amit", surname: "Deshmukh", mobile: "9870011224", dob: "2015-08-22", school: "Podar International School", branch: "Online", course: "Vedic Maths", level: "Level 1", startDate: "2026-04-01", address: "Palm Beach Road", customData: {} }
-    ];
-
-    let ledger = JSON.parse(localStorage.getItem('smaartus_ledger')) || [
-      { id: "TRX-1", date: "2026-10-08", type: "Income", category: "Extension Monthly Fee", amount: 1000, notes: "Aarav Sharma - Abacus (Level 1) - Sanpada" },
-      { id: "TRX-2", date: "2026-10-01", type: "Income", category: "Registration Fee", amount: 1500, notes: "Aarav Sharma - Abacus (Level 1) - Sanpada" },
-      { id: "TRX-3", date: "2026-10-01", type: "Income", category: "Base Course Fee", amount: 3500, notes: "Aarav Sharma - Abacus (Level 1) - Sanpada" },
-      { id: "TRX-4", date: "2026-10-02", type: "Income", category: "Base Course Fee", amount: 4000, notes: "Vihaan Deshmukh - Vedic Maths (Level 1) - Online" },
-      { id: "TRX-5", date: "2026-10-03", type: "Expense", category: "Center Rent", amount: 8000, notes: "Sanpada Branch Oct Rent" }
-    ];
-
-    let attendance = JSON.parse(localStorage.getItem('smaartus_attendance')) || {
-      "2026-10-08": { "STD-101": "P", "STD-102": "P", "STD-103": "A" }
-    };
+    // In-memory runtime collections
+    let students = [];
+    let ledger = [];
+    let attendance = {};
 
     /* --- INITIALIZATION --- */
     window.onload = function() {
@@ -1026,10 +1008,13 @@
       populateCourseSelects();
       lucide.createIcons();
       document.getElementById('attendanceDate').value = new Date().toISOString().split('T')[0];
-      saveDataToStorage();
-      renderStudents();
-      checkAllNotifications(false);
-      checkAndRunDailyDriveBackup();
+
+      // Check session token and restore data from Drive
+      if (driveAccessToken) {
+        restoreFromGoogleDrive();
+      } else {
+        showToast("Please Connect Google Drive to load cloud data.");
+      }
     };
 
     function applyAppConfigUI() {
@@ -1085,28 +1070,15 @@
       lucide.createIcons();
     }
 
-    function saveDataToStorage() {
-      localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
-      localStorage.setItem('smaartus_course_config', JSON.stringify(courseConfig));
-      localStorage.setItem('smaartus_categories_config', JSON.stringify(categoriesConfig));
-      localStorage.setItem('smaartus_custom_fields', JSON.stringify(customFields));
-      localStorage.setItem('smaartus_students', JSON.stringify(students));
-      localStorage.setItem('smaartus_ledger', JSON.stringify(ledger));
-      localStorage.setItem('smaartus_attendance', JSON.stringify(attendance));
-      localStorage.setItem('smaartus_read_notifs', JSON.stringify(readNotifsState));
-      localStorage.setItem('smaartus_admin_pin', activePin);
-      localStorage.setItem('smaartus_biometric_enabled', biometricEnabled.toString());
-    }
-
-    /* --- GOOGLE DRIVE OAUTH 2.0 INTEGRATION --- */
+    /* --- GOOGLE DRIVE DIRECT CLOUD STORAGE ENGINE --- */
     function initGoogleDriveOAuth() {
       if (!appConfig.googleClientId) {
-        showToast("Please enter a Google Cloud OAuth Client ID first!");
+        showToast("OAuth Client ID is missing.");
         return false;
       }
 
       if (typeof google === 'undefined' || !google.accounts) {
-        showToast("Google Identity Services library loading... try again in a moment.");
+        showToast("Google Identity Services library loading... try again.");
         return false;
       }
 
@@ -1116,7 +1088,7 @@
         callback: (tokenResponse) => {
           if (tokenResponse.access_token) {
             driveAccessToken = tokenResponse.access_token;
-            localStorage.setItem('smaartus_gdrive_token', driveAccessToken);
+            sessionStorage.setItem('smaartus_gdrive_token', driveAccessToken);
             
             fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
               headers: { 'Authorization': `Bearer ${driveAccessToken}` }
@@ -1125,19 +1097,13 @@
             .then(profile => {
               if (profile.email) {
                 appConfig.googleAccount = profile.email;
-                saveDataToStorage();
                 applyAppConfigUI();
                 showToast(`Connected to Google Drive (${profile.email})`);
-                
-                // TRIGGER AUTOMATIC RESTORE ON LOGIN/RECONNECT
                 restoreFromGoogleDrive();
               }
             }).catch(() => {
               appConfig.googleAccount = "Authorized User";
-              saveDataToStorage();
               applyAppConfigUI();
-              
-              // TRIGGER AUTOMATIC RESTORE ON LOGIN/RECONNECT
               restoreFromGoogleDrive();
             });
           }
@@ -1172,7 +1138,6 @@
       const fileName = 'Smaartus_Backup.json';
 
       try {
-        // 1. Search if backup file already exists on Google Drive
         const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${fileName}' and trashed=false`, {
           headers: { 'Authorization': `Bearer ${driveAccessToken}` }
         });
@@ -1180,7 +1145,6 @@
         const existingFile = searchData.files && searchData.files[0];
 
         if (existingFile) {
-          // 2. OVERWRITE existing file using PATCH
           const updateRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`, {
             method: 'PATCH',
             headers: {
@@ -1192,16 +1156,14 @@
 
           if (updateRes.ok) {
             appConfig.lastBackupDate = new Date().toISOString().slice(0, 10);
-            saveDataToStorage();
-            if (isManual) showToast("Backup overwritten on Google Drive!");
+            if (isManual) showToast("Cloud storage updated on Google Drive!");
           } else if (updateRes.status === 401) {
             driveAccessToken = "";
-            localStorage.removeItem('smaartus_gdrive_token');
+            sessionStorage.removeItem('smaartus_gdrive_token');
             applyAppConfigUI();
             if (isManual) showToast("Session expired. Please reconnect Google Drive.");
           }
         } else {
-          // 3. CREATE new file if none exists using POST
           const fileMetadata = { name: fileName, mimeType: 'application/json' };
           const form = new FormData();
           form.append('metadata', new Blob([JSON.stringify(fileMetadata)], { type: 'application/json' }));
@@ -1215,7 +1177,6 @@
 
           if (createRes.ok) {
             appConfig.lastBackupDate = new Date().toISOString().slice(0, 10);
-            saveDataToStorage();
             if (isManual) showToast("New backup created on Google Drive!");
           }
         }
@@ -1224,7 +1185,6 @@
       }
     }
 
-    /* --- AUTO RESTORE FROM GOOGLE DRIVE --- */
     async function restoreFromGoogleDrive() {
       if (!driveAccessToken) return;
 
@@ -1238,14 +1198,13 @@
         if (searchData.files && searchData.files.length > 0) {
           const fileId = searchData.files[0].id;
 
-          // Fetch backup file content from Drive
           const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
             headers: { 'Authorization': `Bearer ${driveAccessToken}` }
           });
 
           const backupData = await fileRes.json();
 
-          // Restore state variables
+          // Restore cloud state into memory
           if (backupData.students) students = backupData.students;
           if (backupData.ledger) ledger = backupData.ledger;
           if (backupData.attendance) attendance = backupData.attendance;
@@ -1253,25 +1212,15 @@
           if (backupData.categoriesConfig) categoriesConfig = backupData.categoriesConfig;
           if (backupData.customFields) customFields = backupData.customFields;
 
-          // Save restored data to LocalStorage & refresh app views
-          saveDataToStorage();
           renderStudents();
           renderLedger();
           generateAllReports();
-          showToast("Data successfully restored from Google Drive!");
+          showToast("Data restored directly from Google Drive!");
         } else {
-          showToast("No existing backup file found in Google Drive.");
+          showToast("No existing cloud backup file found on Google Drive.");
         }
       } catch (err) {
         showToast("Restore error: " + err.message);
-      }
-    }
-
-    function checkAndRunDailyDriveBackup() {
-      if (!appConfig.autoDriveBackup || !driveAccessToken) return;
-      const today = new Date().toISOString().slice(0, 10);
-      if (appConfig.lastBackupDate !== today) {
-        syncDataToGoogleDrive(false);
       }
     }
 
@@ -1280,7 +1229,6 @@
       document.getElementById('settingAppName').value = appConfig.appName || "Smaartus Operations";
       document.getElementById('settingAdminPin').value = activePin;
       document.getElementById('settingBiometricEnabled').value = biometricEnabled.toString();
-      document.getElementById('settingGoogleClientId').value = appConfig.googleClientId || "";
       document.getElementById('settingAutoDriveBackup').checked = appConfig.autoDriveBackup || false;
       document.getElementById('settingIncomeCategories').value = categoriesConfig.income.join(', ');
       document.getElementById('settingExpenseCategories').value = categoriesConfig.expense.join(', ');
@@ -1381,7 +1329,6 @@
       if (newPin && newPin.length === 4) activePin = newPin;
 
       biometricEnabled = document.getElementById('settingBiometricEnabled').value === "true";
-      appConfig.googleClientId = document.getElementById('settingGoogleClientId').value.trim();
       appConfig.autoDriveBackup = document.getElementById('settingAutoDriveBackup').checked;
 
       const incStr = document.getElementById('settingIncomeCategories').value;
@@ -1626,6 +1573,7 @@
       document.getElementById('studentModal').classList.add('hidden');
     }
 
+    /* --- STUDENT FORM MODAL --- */
     function saveStudent(e) {
       e.preventDefault();
       const id = document.getElementById('studentId').value || 'STD-' + Date.now().toString().slice(-4);
@@ -1655,11 +1603,10 @@
       if (idx >= 0) students[idx] = newStudent;
       else students.push(newStudent);
 
-      saveDataToStorage();
       closeStudentModal();
       renderStudents();
       checkAllNotifications(false);
-      showToast("Student saved successfully!");
+      syncDataToGoogleDrive(true);
     }
 
     function editStudent(id) {
@@ -1695,10 +1642,9 @@
     function deleteStudent(id) {
       if (confirm("Are you sure you want to delete this student profile?")) {
         students = students.filter(s => s.id !== id);
-        saveDataToStorage();
         renderStudents();
         checkAllNotifications(false);
-        showToast("Student profile removed.");
+        syncDataToGoogleDrive(true);
       }
     }
 
@@ -1740,15 +1686,14 @@
         notes: `${s.firstName} ${s.surname} - ${s.course} (${nextLevel}) - ${s.branch}`
       });
 
-      saveDataToStorage();
       closePromoteModal();
       renderStudents();
       renderLedger();
       generateAllReports();
+      syncDataToGoogleDrive(true);
 
       const msg = `🎉 *[${appConfig.appName || "Smaartus Classes"}] Promotion & Fee Notice*\n\nDear Parent,\n\nCongratulations! *${s.firstName}* has successfully completed Level 1 and been promoted to *${nextLevel}*.\n\n• *Course Fee for ${nextLevel}:* ₹${feeAmount}\n\nKindly process the payment at your earliest convenience to confirm enrollment.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
       window.open(`https://wa.me/91${s.mobile}?text=${encodeURIComponent(msg)}`, '_blank');
-      showToast("Student promoted & Fee logged into Ledger!");
     }
 
     /* --- ATTENDANCE --- */
@@ -1787,9 +1732,8 @@
     function setAttendance(dateVal, stdId, status) {
       if (!attendance[dateVal]) attendance[dateVal] = {};
       attendance[dateVal][stdId] = status;
-      saveDataToStorage();
       renderAttendanceGrid();
-      showToast(`Attendance recorded.`);
+      syncDataToGoogleDrive(false);
     }
 
     /* --- LEDGER --- */
@@ -1904,10 +1848,9 @@
     function deleteLedgerTransaction(id) {
       if (confirm("Remove this transaction entry?")) {
         ledger = ledger.filter(t => t.id !== id);
-        saveDataToStorage();
         renderLedger();
         generateAllReports();
-        showToast("Transaction removed.");
+        syncDataToGoogleDrive(true);
       }
     }
 
@@ -1943,11 +1886,10 @@
         ledger.unshift(itemData);
       }
 
-      saveDataToStorage();
       closeLedgerModal();
       renderLedger();
       generateAllReports(); 
-      showToast("Transaction saved!");
+      syncDataToGoogleDrive(true);
     }
 
     /* --- REPORTS ENGINE --- */
