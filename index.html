@@ -1128,11 +1128,17 @@
                 saveDataToStorage();
                 applyAppConfigUI();
                 showToast(`Connected to Google Drive (${profile.email})`);
+                
+                // TRIGGER AUTOMATIC RESTORE ON LOGIN/RECONNECT
+                restoreFromGoogleDrive();
               }
             }).catch(() => {
               appConfig.googleAccount = "Authorized User";
               saveDataToStorage();
               applyAppConfigUI();
+              
+              // TRIGGER AUTOMATIC RESTORE ON LOGIN/RECONNECT
+              restoreFromGoogleDrive();
             });
           }
         },
@@ -1163,32 +1169,101 @@
         exportedAt: new Date().toISOString()
       };
 
-      const fileName = `Smaartus_Backup_${new Date().toISOString().slice(0, 10)}.json`;
-      const fileMetadata = { name: fileName, mimeType: 'application/json' };
-
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(fileMetadata)], { type: 'application/json' }));
-      form.append('file', new Blob([JSON.stringify(backupContent, null, 2)], { type: 'application/json' }));
+      const fileName = 'Smaartus_Backup.json';
 
       try {
-        const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${driveAccessToken}` },
-          body: form
+        // 1. Search if backup file already exists on Google Drive
+        const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${fileName}' and trashed=false`, {
+          headers: { 'Authorization': `Bearer ${driveAccessToken}` }
         });
+        const searchData = await searchRes.json();
+        const existingFile = searchData.files && searchData.files[0];
 
-        if (response.ok) {
-          appConfig.lastBackupDate = new Date().toISOString().slice(0, 10);
-          saveDataToStorage();
-          if (isManual) showToast("Uploaded backup to Google Drive!");
-        } else if (response.status === 401) {
-          driveAccessToken = "";
-          localStorage.removeItem('smaartus_gdrive_token');
-          applyAppConfigUI();
-          if (isManual) showToast("Session expired. Please reconnect Google Drive.");
+        if (existingFile) {
+          // 2. OVERWRITE existing file using PATCH
+          const updateRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${driveAccessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(backupContent, null, 2)
+          });
+
+          if (updateRes.ok) {
+            appConfig.lastBackupDate = new Date().toISOString().slice(0, 10);
+            saveDataToStorage();
+            if (isManual) showToast("Backup overwritten on Google Drive!");
+          } else if (updateRes.status === 401) {
+            driveAccessToken = "";
+            localStorage.removeItem('smaartus_gdrive_token');
+            applyAppConfigUI();
+            if (isManual) showToast("Session expired. Please reconnect Google Drive.");
+          }
+        } else {
+          // 3. CREATE new file if none exists using POST
+          const fileMetadata = { name: fileName, mimeType: 'application/json' };
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify(fileMetadata)], { type: 'application/json' }));
+          form.append('file', new Blob([JSON.stringify(backupContent, null, 2)], { type: 'application/json' }));
+
+          const createRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${driveAccessToken}` },
+            body: form
+          });
+
+          if (createRes.ok) {
+            appConfig.lastBackupDate = new Date().toISOString().slice(0, 10);
+            saveDataToStorage();
+            if (isManual) showToast("New backup created on Google Drive!");
+          }
         }
       } catch (err) {
-        if (isManual) showToast("Upload error: " + err.message);
+        if (isManual) showToast("Sync error: " + err.message);
+      }
+    }
+
+    /* --- AUTO RESTORE FROM GOOGLE DRIVE --- */
+    async function restoreFromGoogleDrive() {
+      if (!driveAccessToken) return;
+
+      try {
+        const fileName = 'Smaartus_Backup.json';
+        const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${fileName}' and trashed=false`, {
+          headers: { 'Authorization': `Bearer ${driveAccessToken}` }
+        });
+        const searchData = await searchRes.json();
+
+        if (searchData.files && searchData.files.length > 0) {
+          const fileId = searchData.files[0].id;
+
+          // Fetch backup file content from Drive
+          const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: { 'Authorization': `Bearer ${driveAccessToken}` }
+          });
+
+          const backupData = await fileRes.json();
+
+          // Restore state variables
+          if (backupData.students) students = backupData.students;
+          if (backupData.ledger) ledger = backupData.ledger;
+          if (backupData.attendance) attendance = backupData.attendance;
+          if (backupData.courseConfig) courseConfig = backupData.courseConfig;
+          if (backupData.categoriesConfig) categoriesConfig = backupData.categoriesConfig;
+          if (backupData.customFields) customFields = backupData.customFields;
+
+          // Save restored data to LocalStorage & refresh app views
+          saveDataToStorage();
+          renderStudents();
+          renderLedger();
+          generateAllReports();
+          showToast("Data successfully restored from Google Drive!");
+        } else {
+          showToast("No existing backup file found in Google Drive.");
+        }
+      } catch (err) {
+        showToast("Restore error: " + err.message);
       }
     }
 
