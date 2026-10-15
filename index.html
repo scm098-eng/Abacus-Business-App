@@ -2302,6 +2302,78 @@ function closeAdminSettingsModal() {
   if (modal) modal.classList.add('hidden');
 }
 
+function addIncomeTransaction(studentId, amount, category, dateStr) {
+  // 1. Record Ledger Entry
+  const transaction = {
+    id: Date.now(),
+    date: dateStr || new Date().toISOString().split('T')[0],
+    type: 'Income',
+    category: category,
+    amount: parseFloat(amount),
+    studentId: studentId
+  };
+  ledgerData.push(transaction);
+
+  // 2. If Extension Fee, update student's paid extension count directly
+  if (category === "Extension Monthly Fee" || (category && category.includes("Extension"))) {
+    const student = studentsData.find(s => s.id === studentId || s.id == studentId);
+    if (student) {
+      const course = (typeof courseMaster !== 'undefined' ? courseMaster : []).find(c => c.name === student.course) || { extFee: 800 };
+      const extFeeUnit = course.extFee || 800;
+      const monthsAdded = Math.max(1, Math.round(parseFloat(amount) / extFeeUnit));
+      
+      student.paidExtensionMonths = (student.paidExtensionMonths || 0) + monthsAdded;
+    }
+  }
+
+  // 3. Re-calculate notifications and perform cloud sync
+  if (typeof generateNotifications === 'function') generateNotifications();
+  if (typeof syncDataToGoogleDrive === 'function') syncDataToGoogleDrive(false);
+  if (typeof renderLedger === 'function') renderLedger();
+  if (typeof showToast === 'function') showToast("Extension fee recorded & notifications updated!");
+}
+
+function generateNotifications() {
+  const notifications = [];
+  const today = new Date();
+
+  studentsData.forEach(student => {
+    // Get course fees (defaulting extension fee to 800)
+    const course = courseMaster.find(c => c.name === student.course) || { extFee: 800, baseMonth: 3 };
+    const extMonthlyFee = course.extFee || 800;
+
+    // Sum all extension fees paid by this student in the Ledger
+    const totalExtIncome = ledgerData
+      .filter(t => t.studentId === student.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
+      .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+
+    const paidExtMonths = Math.floor(totalExtIncome / extMonthlyFee);
+
+    // Calculate elapsed months since base course completion
+    const startDate = new Date(student.joinDate || student.startDate || today);
+    const monthsElapsed = (today.getFullYear() - startDate.getFullYear()) * 12 + (today.getMonth() - startDate.getMonth());
+    const extMonthsRequired = Math.max(0, monthsElapsed - (course.baseMonth || 3));
+
+    // Determine unpaid extension months
+    const pendingExtMonths = extMonthsRequired - paidExtMonths;
+
+    if (pendingExtMonths > 0) {
+      notifications.push({
+        id: `ext_${student.id}`,
+        type: 'Extension Fee Notice',
+        studentName: `${student.name} (${student.course})`,
+        branch: student.branch || 'Sanpada',
+        message: `Ext Month +${pendingExtMonths} (₹${pendingExtMonths * extMonthlyFee})`,
+        pendingMonths: pendingExtMonths,
+        amount: pendingExtMonths * extMonthlyFee
+      });
+    }
+  });
+
+  // Render to UI
+  renderNotificationsUI(notifications);
+}
+
     /* --- TOAST --- */
     function showToast(msg) {
       const toast = document.getElementById('toast');
