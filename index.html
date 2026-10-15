@@ -78,7 +78,6 @@
     html:not(.dark) .text-white { color: #0f172a !important; }
     html:not(.dark) .text-slate-300, html:not(.dark) .text-slate-400 { color: #334155 !important; }
 
-    /* Light theme button text contrast fixes */
     html:not(.dark) button.bg-slate-700\/70,
     html:not(.dark) button.bg-slate-700 {
       background-color: #e2e8f0 !important;
@@ -323,8 +322,8 @@
               <label class="block text-xs text-slate-400 mb-1">Month / Period Range</label>
               <select id="reportPeriodFilter" onchange="generateAllReports()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                 <option value="AllTime">All Time Data</option>
-                <option value="CurrentMonth">Current Month (Oct 2026)</option>
-                <option value="LastMonth">Last Month (Sept 2026)</option>
+                <option value="CurrentMonth">Current Month</option>
+                <option value="LastMonth">Last Month</option>
               </select>
             </div>
           </div>
@@ -667,7 +666,7 @@
         <div class="space-y-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
           <div class="flex justify-between items-center">
             <h4 class="font-semibold text-indigo-400 uppercase text-[11px] tracking-wider">Courses & Fee Master</h4>
-            <button onclick="addCourseSettingRow()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1">
+            <button type="button" onclick="addCourseSettingRow()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i>
               <span>Add Course</span>
             </button>
@@ -697,7 +696,7 @@
         <div class="space-y-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
           <div class="flex justify-between items-center">
             <h4 class="font-semibold text-indigo-400 uppercase text-[11px] tracking-wider">Dynamic Custom Fields</h4>
-            <button onclick="addCustomFieldRow()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1">
+            <button type="button" onclick="addCustomFieldRow()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i>
               <span>Add Field</span>
             </button>
@@ -830,7 +829,7 @@
         </div>
         <div>
           <label class="block text-slate-400 mb-1">Promoted Level Base Fee (₹)</label>
-          <input type="number" id="promoteFee" value="3500" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
+          <input type="number" id="promoteFee" value="3000" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
         </div>
       </div>
 
@@ -967,7 +966,7 @@
       });
     }
 
-    /* --- APPLICATION IN-MEMORY STATE (NO LOCAL STORAGE FOR DATA) --- */
+    /* --- APPLICATION STATE --- */
     let activePin = "1234";
     let biometricEnabled = true;
     let enteredPin = "";
@@ -984,18 +983,19 @@
     let driveAccessToken = localStorage.getItem('smaartus_gdrive_token') || "";
     let tokenClient = null;
 
-    let courseConfig = {
-      "Abacus": { baseMonths: 3, registrationFee: 1500, baseFee: 3500, extensionFee: 800 },
-      "Vedic Maths": { baseMonths: 4, registrationFee: 0, baseFee: 4000, extensionFee: 900 },
-      "Rubik Cube": { baseMonths: 2, registrationFee: 0, baseFee: 2500, extensionFee: 700 }
-    };
+    // SINGLE UNIFIED COURSE MASTER ARRAY
+    let courseMaster = JSON.parse(localStorage.getItem('smaartus_course_master')) || [
+      { name: 'Abacus', baseMonth: 3, regFee: 1500, baseFee: 3000, extFee: 1000 },
+      { name: 'Vedic Maths', baseMonth: 3, regFee: 1500, baseFee: 4000, extFee: 1000 },
+      { name: 'Rubik Cube', baseMonth: 2, regFee: 0, baseFee: 2500, extFee: 700 }
+    ];
 
-    let categoriesConfig = {
+    let categoriesConfig = JSON.parse(localStorage.getItem('smaartus_categories_config')) || {
       income: ["Registration Fee", "Base Course Fee", "Extension Monthly Fee", "Book & Kit Fee", "Other Income"],
       expense: ["Center Rent", "Faculty Salary", "Utilities & Electricity", "Equipment & Supplies", "Marketing & Print", "Other Expense"]
     };
 
-    let customFields = [];
+    let customFields = JSON.parse(localStorage.getItem('smaartus_custom_fields')) || [];
     let readNotifsState = { lastReadDate: "" };
 
     // In-memory runtime collections
@@ -1005,12 +1005,17 @@
 
     /* --- INITIALIZATION --- */
     window.onload = function() {
+      // PERSISTENT AUTH CHECK: Check if session is already active
+      const isAuthenticated = localStorage.getItem('smaartus_auth_session') === 'active';
+      if (isAuthenticated) {
+        document.getElementById('pinLockScreen').classList.add('hidden');
+      }
+
       applyAppConfigUI();
       populateCourseSelects();
       lucide.createIcons();
       document.getElementById('attendanceDate').value = new Date().toISOString().split('T')[0];
 
-      // Check session token and restore data from Drive
       if (driveAccessToken) {
         restoreFromGoogleDrive();
       } else {
@@ -1036,9 +1041,12 @@
       }
     }
 
+    function getCourseFees(courseName) {
+      const found = courseMaster.find(c => c.name.toLowerCase() === (courseName || '').toLowerCase());
+      return found || { baseMonth: 3, regFee: 1500, baseFee: 3000, extFee: 1000 };
+    }
+
     function populateCourseSelects() {
-      const courseKeys = Object.keys(courseConfig);
-      
       const filterSelect = document.getElementById('studentCourseFilter');
       const modalSelect = document.getElementById('course');
       const reportSelect = document.getElementById('reportCourseFilter');
@@ -1047,10 +1055,10 @@
       modalSelect.innerHTML = ``;
       reportSelect.innerHTML = `<option value="All">All Courses</option>`;
 
-      courseKeys.forEach(c => {
-        filterSelect.innerHTML += `<option value="${c}">${c}</option>`;
-        modalSelect.innerHTML += `<option value="${c}">${c}</option>`;
-        reportSelect.innerHTML += `<option value="${c}">${c}</option>`;
+      courseMaster.forEach(c => {
+        filterSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+        modalSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+        reportSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`;
       });
     }
 
@@ -1072,23 +1080,22 @@
     }
 
     /* --- GOOGLE DRIVE DIRECT CLOUD STORAGE ENGINE --- */
+    function initGoogleDriveOAuth() {
+      if (!appConfig.googleClientId) {
+        showToast("OAuth Client ID is missing.");
+        return false;
+      }
 
-function initGoogleDriveOAuth() {
-  if (!appConfig.googleClientId) {
-    showToast("OAuth Client ID is missing.");
-    return false;
-  }
+      if (typeof google === 'undefined' || !google.accounts) {
+        showToast("Google Identity Services library loading... try again.");
+        return false;
+      }
 
-  if (typeof google === 'undefined' || !google.accounts) {
-    showToast("Google Identity Services library loading... try again.");
-    return false;
-  }
-
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: appConfig.googleClientId,
-    scope: 'https://www.googleapis.com/auth/drive.file',
-    callback: (tokenResponse) => {
-      if (tokenResponse.access_token) {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: appConfig.googleClientId,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: (tokenResponse) => {
+          if (tokenResponse.access_token) {
             driveAccessToken = tokenResponse.access_token;
             localStorage.setItem('smaartus_gdrive_token', driveAccessToken);
             
@@ -1099,27 +1106,26 @@ function initGoogleDriveOAuth() {
             .then(profile => {
               appConfig.googleAccount = profile.email || "Authorized User";
               localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
-              applyAppConfigUI(); // Immediate UI status text update
+              applyAppConfigUI();
               showToast(`Connected to Google Drive (${appConfig.googleAccount})`);
               restoreFromGoogleDrive();
             }).catch(() => {
               appConfig.googleAccount = "Authorized User";
               localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
-              applyAppConfigUI(); // Immediate UI status text update
+              applyAppConfigUI();
               restoreFromGoogleDrive();
             });
           }
-    },
-  });
-  return true;
-}
+        },
+      });
+      return true;
+    }
 
-function connectGoogleDriveOAuth() {
-  if (initGoogleDriveOAuth()) {
-    // Use prompt: 'none' for existing sessions, falling back gracefully to select_account if token needs renewal
-    tokenClient.requestAccessToken({ prompt: 'select_account' });
-  }
-}
+    function connectGoogleDriveOAuth() {
+      if (initGoogleDriveOAuth()) {
+        tokenClient.requestAccessToken({ prompt: 'select_account' });
+      }
+    }
 
     async function syncDataToGoogleDrive(isManual = false) {
       if (!driveAccessToken) {
@@ -1127,9 +1133,11 @@ function connectGoogleDriveOAuth() {
         return;
       }
 
+      appConfig.courseMaster = courseMaster;
+
       const backupContent = {
         appConfig,
-        courseConfig,
+        courseMaster,
         categoriesConfig,
         customFields,
         students,
@@ -1162,7 +1170,7 @@ function connectGoogleDriveOAuth() {
             if (isManual) showToast("Cloud storage updated on Google Drive!");
           } else if (updateRes.status === 401) {
             driveAccessToken = "";
-            sessionStorage.removeItem('smaartus_gdrive_token');
+            localStorage.removeItem('smaartus_gdrive_token');
             applyAppConfigUI();
             if (isManual) showToast("Session expired. Please reconnect Google Drive.");
           }
@@ -1207,20 +1215,30 @@ function connectGoogleDriveOAuth() {
 
           const backupData = await fileRes.json();
 
-          // Restore cloud state into memory
           if (backupData.students) students = backupData.students;
           if (backupData.ledger) ledger = backupData.ledger;
           if (backupData.attendance) attendance = backupData.attendance;
-          if (backupData.courseConfig) courseConfig = backupData.courseConfig;
-          if (backupData.categoriesConfig) categoriesConfig = backupData.categoriesConfig;
-          if (backupData.customFields) customFields = backupData.customFields;
+          
+          if (backupData.courseMaster) {
+            courseMaster = backupData.courseMaster;
+            localStorage.setItem('smaartus_course_master', JSON.stringify(courseMaster));
+          }
+          if (backupData.categoriesConfig) {
+            categoriesConfig = backupData.categoriesConfig;
+            localStorage.setItem('smaartus_categories_config', JSON.stringify(categoriesConfig));
+          }
+          if (backupData.customFields) {
+            customFields = backupData.customFields;
+            localStorage.setItem('smaartus_custom_fields', JSON.stringify(customFields));
+          }
 
           if (backupData.appConfig && backupData.appConfig.googleAccount) {
             appConfig.googleAccount = backupData.appConfig.googleAccount;
           }
           localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
           
-          applyAppConfigUI(); // Ensures settings UI reflects 'Connected' immediately
+          applyAppConfigUI();
+          populateCourseSelects();
           renderStudents();
           renderLedger();
           generateAllReports();
@@ -1254,104 +1272,53 @@ function connectGoogleDriveOAuth() {
 
     function renderAdminCourseMasterRows() {
       const container = document.getElementById('courseMasterListContainer');
-      container.innerHTML = '';
+      if (!container) return;
 
-      Object.entries(courseConfig).forEach(([courseName, conf]) => {
-        container.innerHTML += `
-          <div class="bg-slate-900 border border-slate-700/80 p-3 rounded-xl space-y-2">
-            <div class="flex items-center justify-between gap-2">
-              <input type="text" value="${courseName}" data-field="name" data-orig="${courseName}" class="course-row-input font-bold text-white bg-slate-950 border border-slate-700 rounded-lg p-1.5 w-1/2 text-xs" />
-              <button type="button" onclick="deleteCourseSettingRow('${courseName}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold px-2 py-1 bg-rose-900/30 rounded-lg">Delete</button>
+      container.innerHTML = courseMaster.map((course, idx) => `
+        <div class="course-master-card bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+          <div class="flex justify-between items-center">
+            <input type="text" value="${course.name}" class="course-name-input bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-white text-xs font-semibold w-1/2" placeholder="Course Name" />
+            <button type="button" onclick="deleteCourseSettingRow(${idx})" class="text-rose-400 hover:text-rose-300 text-xs font-semibold px-2 py-1 rounded bg-rose-500/10 border border-rose-500/20">Delete</button>
+          </div>
+          <div class="grid grid-cols-4 gap-2 text-[11px]">
+            <div>
+              <label class="block text-slate-400 mb-0.5">Base Month</label>
+              <input type="number" value="${course.baseMonth}" class="course-basemonth-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
             </div>
-            <div class="grid grid-cols-4 gap-1.5 text-[10px]">
-              <div>
-                <label class="block text-slate-400 mb-0.5">Base Month</label>
-                <input type="number" value="${conf.baseMonths}" data-field="baseMonths" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1 text-white" />
-              </div>
-              <div>
-                <label class="block text-slate-400 mb-0.5">Reg Fee</label>
-                <input type="number" value="${conf.registrationFee || 0}" data-field="registrationFee" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1 text-white" />
-              </div>
-              <div>
-                <label class="block text-slate-400 mb-0.5">Base Fee</label>
-                <input type="number" value="${conf.baseFee}" data-field="baseFee" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1 text-white" />
-              </div>
-              <div>
-                <label class="block text-slate-400 mb-0.5">Ext Fee</label>
-                <input type="number" value="${conf.extensionFee}" data-field="extensionFee" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1 text-white" />
-              </div>
+            <div>
+              <label class="block text-slate-400 mb-0.5">Reg Fee</label>
+              <input type="number" value="${course.regFee}" class="course-regfee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-0.5">Base Fee</label>
+              <input type="number" value="${course.baseFee}" class="course-basefee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-0.5">Ext Fee</label>
+              <input type="number" value="${course.extFee}" class="course-extfee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
             </div>
           </div>
-        `;
-      });
+        </div>
+      `).join('');
     }
 
-    let courseMaster = JSON.parse(localStorage.getItem('smaartus_course_master')) || [
-  { name: 'Abacus', baseMonth: 3, regFee: 1500, baseFee: 3500, extFee: 800 },
-  { name: 'Vedic Maths', baseMonth: 3, regFee: 1500, baseFee: 3500, extFee: 800 }
-];
+    function addCourseSettingRow() {
+      courseMaster.push({
+        name: "New Course " + (courseMaster.length + 1),
+        baseMonth: 3,
+        regFee: 0,
+        baseFee: 3000,
+        extFee: 800
+      });
+      renderAdminCourseMasterRows();
+    }
 
-function addCourseSettingRow() {
-  const newCourseName = "New Course " + (courseMaster.length + 1);
-  courseMaster.push({
-    name: newCourseName,
-    baseMonth: 3,
-    regFee: 0,
-    baseFee: 3000,
-    extFee: 800
-  });
-  renderAdminCourseMasterRows();
-}
-
-function renderAdminCourseMasterRows() {
-  const container = document.getElementById('courseMasterListContainer');
-  if (!container) return;
-
-  container.innerHTML = courseMaster.map((course, idx) => `
-    <div class="course-master-card bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
-      <div class="flex justify-between items-center">
-        <input type="text" value="${course.name}" class="course-name-input bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-white text-xs font-semibold w-1/2" placeholder="Course Name" />
-        <button type="button" onclick="deleteCourseSettingRow(${idx})" class="text-rose-400 hover:text-rose-300 text-xs font-semibold px-2 py-1 rounded bg-rose-500/10 border border-rose-500/20">Delete</button>
-      </div>
-      <div class="grid grid-cols-4 gap-2 text-[11px]">
-        <div>
-          <label class="block text-slate-400 mb-0.5">Base Month</label>
-          <input type="number" value="${course.baseMonth}" class="course-basemonth-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-0.5">Reg Fee</label>
-          <input type="number" value="${course.regFee}" class="course-regfee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-0.5">Base Fee</label>
-          <input type="number" value="${course.baseFee}" class="course-basefee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-0.5">Ext Fee</label>
-          <input type="number" value="${course.extFee}" class="course-extfee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function deleteCourseSettingRow(index) {
-  courseMaster.splice(index, 1);
-  renderAdminCourseMasterRows();
-}
-
-function openAdminSettingsModal() {
-  renderAdminCourseMasterRows(); // Populates course inputs
-  const modal = document.getElementById('adminSettingsModal');
-  if (modal) modal.classList.remove('hidden');
-}
-
-    function deleteCourseSettingRow(cName) {
-      if (Object.keys(courseConfig).length <= 1) {
+    function deleteCourseSettingRow(idx) {
+      if (courseMaster.length <= 1) {
         showToast("At least one course must remain active!");
         return;
       }
-      delete courseConfig[cName];
+      courseMaster.splice(idx, 1);
       renderAdminCourseMasterRows();
     }
 
@@ -1386,60 +1353,67 @@ function openAdminSettingsModal() {
     }
 
     function saveAdminSettings() {
-      const newAppName = document.getElementById('settingAppName').value.trim();
-      if (newAppName) appConfig.appName = newAppName;
+      try {
+        const appNameInput = document.getElementById('settingAppName');
+        const adminPinInput = document.getElementById('settingAdminPin');
+        const biometricSelect = document.getElementById('settingBiometricEnabled');
+        const autoBackupCheckbox = document.getElementById('settingAutoDriveBackup');
 
-      const newPin = document.getElementById('settingAdminPin').value.trim();
-      if (newPin && newPin.length === 4) activePin = newPin;
+        if (appNameInput) appConfig.appName = appNameInput.value.trim() || "Smaartus Operations";
+        if (adminPinInput && adminPinInput.value.trim()) activePin = adminPinInput.value.trim();
+        if (biometricSelect) biometricEnabled = biometricSelect.value === 'true';
+        if (autoBackupCheckbox) appConfig.autoDriveBackup = autoBackupCheckbox.checked;
 
-      biometricEnabled = document.getElementById('settingBiometricEnabled').value === "true";
-      appConfig.autoDriveBackup = document.getElementById('settingAutoDriveBackup').checked;
+        // Save Course Master
+        const courseCards = document.querySelectorAll('#courseMasterListContainer .course-master-card');
+        if (courseCards.length > 0) {
+          const updatedCourses = [];
+          courseCards.forEach(card => {
+            const name = card.querySelector('.course-name-input')?.value.trim();
+            const baseMonth = parseInt(card.querySelector('.course-basemonth-input')?.value) || 3;
+            const regFee = parseFloat(card.querySelector('.course-regfee-input')?.value) || 0;
+            const baseFee = parseFloat(card.querySelector('.course-basefee-input')?.value) || 0;
+            const extFee = parseFloat(card.querySelector('.course-extfee-input')?.value) || 0;
 
-      const incStr = document.getElementById('settingIncomeCategories').value;
-      const expStr = document.getElementById('settingExpenseCategories').value;
-      if (incStr) categoriesConfig.income = incStr.split(',').map(s => s.trim()).filter(Boolean);
-      if (expStr) categoriesConfig.expense = expStr.split(',').map(s => s.trim()).filter(Boolean);
+            if (name) {
+              updatedCourses.push({ name, baseMonth, regFee, baseFee, extFee });
+            }
+          });
+          if (updatedCourses.length > 0) {
+            courseMaster = updatedCourses;
+            localStorage.setItem('smaartus_course_master', JSON.stringify(courseMaster));
+          }
+        }
 
-      saveDataToStorage();
-      applyAppConfigUI();
-      closeAdminSettingsModal();
-      showToast("Settings saved successfully!");
+        // Save Transaction Categories
+        const incStr = document.getElementById('settingIncomeCategories').value;
+        const expStr = document.getElementById('settingExpenseCategories').value;
+        if (incStr) categoriesConfig.income = incStr.split(',').map(s => s.trim()).filter(Boolean);
+        if (expStr) categoriesConfig.expense = expStr.split(',').map(s => s.trim()).filter(Boolean);
+        localStorage.setItem('smaartus_categories_config', JSON.stringify(categoriesConfig));
+
+        // Save Custom Fields
+        localStorage.setItem('smaartus_custom_fields', JSON.stringify(customFields));
+
+        appConfig.courseMaster = courseMaster;
+        localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
+
+        populateCourseSelects();
+        applyAppConfigUI();
+        renderStudents();
+        generateAllReports();
+
+        if (typeof syncDataToGoogleDrive === 'function') {
+          syncDataToGoogleDrive(false);
+        }
+
+        closeAdminSettingsModal();
+        showToast("Master Settings & Fees saved successfully!");
+      } catch (err) {
+        console.error("Error saving admin settings:", err);
+        showToast("Failed to save settings.");
+      }
     }
-
-  function markNotificationsRead() {
-  try {
-    // 1. Clear active notification list in memory
-    unreadNotifications = [];
-
-    // 2. Hide or clear the notification badge count on the main bell icon
-    const badgeEl = document.getElementById('notificationBadge');
-    if (badgeEl) {
-      badgeEl.innerText = '0';
-      badgeEl.classList.add('hidden');
-    }
-
-    // 3. Clear the inner HTML list inside the Notification Modal
-    const listEl = document.getElementById('notificationsListContainer');
-    if (listEl) {
-      listEl.innerHTML = `<div class="p-6 text-center text-slate-400 font-medium">All notifications marked as read!</div>`;
-    }
-
-    // 4. Trigger Direct Cloud Drive Sync to save notification state
-    if (typeof syncToGoogleDrive === 'function') {
-      syncToGoogleDrive();
-    }
-
-    showToast("All notifications marked as read!");
-    
-    // 5. Close Modal after 1 second
-    setTimeout(() => {
-      closeModal('notificationsModal');
-    }, 1000);
-  } catch (err) {
-    console.error("Mark as read error:", err);
-    showToast("Failed to mark notifications as read.");
-  }
-}
 
     /* --- PIN LOCK --- */
     function pressPin(num) {
@@ -1465,6 +1439,7 @@ function openAdminSettingsModal() {
 
     function verifyPin() {
       if (enteredPin === activePin) {
+        localStorage.setItem('smaartus_auth_session', 'active');
         document.getElementById('pinLockScreen').classList.add('hidden');
         showToast("Unlocked successfully!");
         clearPin();
@@ -1479,19 +1454,22 @@ function openAdminSettingsModal() {
         showToast("Biometrics disabled in Settings.");
         return;
       }
+      localStorage.setItem('smaartus_auth_session', 'active');
       document.getElementById('pinLockScreen').classList.add('hidden');
       showToast("Biometric verification success!");
     }
 
     function lockApp() {
+      localStorage.removeItem('smaartus_auth_session');
       document.getElementById('pinLockScreen').classList.remove('hidden');
       clearPin();
     }
 
     /* --- DATES & CALCULATIONS --- */
     function calculateCompletedMonths(startDateStr) {
+      if (!startDateStr) return 1;
       const start = new Date(startDateStr);
-      const now = new Date("2026-10-08");
+      const now = new Date();
       let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
       if (now.getDate() < start.getDate()) months--;
       return Math.max(1, months + 1);
@@ -1500,7 +1478,7 @@ function openAdminSettingsModal() {
     function calculateAge(dobStr) {
       if (!dobStr) return "";
       const dob = new Date(dobStr);
-      const diff = new Date("2026-10-08") - dob;
+      const diff = new Date() - dob;
       return Math.abs(new Date(diff).getUTCFullYear() - 1970);
     }
 
@@ -1545,9 +1523,9 @@ function openAdminSettingsModal() {
 
       filtered.forEach(s => {
         const completedMonths = calculateCompletedMonths(s.startDate);
-        const config = courseConfig[s.course] || Object.values(courseConfig)[0] || { baseMonths: 3, baseFee: 3000, extensionFee: 800 };
-        const isExtension = completedMonths > config.baseMonths;
-        const overdueMonths = isExtension ? completedMonths - config.baseMonths : 0;
+        const config = getCourseFees(s.course);
+        const isExtension = completedMonths > config.baseMonth;
+        const overdueMonths = isExtension ? completedMonths - config.baseMonth : 0;
         const age = calculateAge(s.dob);
 
         const card = document.createElement('div');
@@ -1610,11 +1588,11 @@ function openAdminSettingsModal() {
       container.innerHTML = '';
 
       const completedMonths = calculateCompletedMonths(s.startDate);
-      const config = courseConfig[s.course] || Object.values(courseConfig)[0] || { baseMonths: 3, baseFee: 3000, extensionFee: 800 };
-      const overdueMonths = completedMonths > config.baseMonths ? completedMonths - config.baseMonths : 0;
+      const config = getCourseFees(s.course);
+      const overdueMonths = completedMonths > config.baseMonth ? completedMonths - config.baseMonth : 0;
 
-      const m1 = `🧮 *[${appConfig.appName || "Smaartus Classes"}] Monthly Progress Update*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\nWe are pleased to inform you that *${s.firstName}* has successfully completed Month ${completedMonths} of ${config.baseMonths} for ${s.course} (${s.level}).\n\nThank you for your continued support!\n*${appConfig.appName || "Smaartus Classes"}*`;
-      const m2 = `📋 *[${appConfig.appName || "Smaartus Classes"}] Extension Fee Notice*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\nThis is a friendly reminder that *${s.firstName}* has entered Extension Month ${overdueMonths || 1} for ${s.course}.\n\n• *Extension Fee Due:* ₹${config.extensionFee}\n\nPlease settle the fee at your earliest convenience to continue seamless learning.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
+      const m1 = `🧮 *[${appConfig.appName || "Smaartus Classes"}] Monthly Progress Update*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\nWe are pleased to inform you that *${s.firstName}* has successfully completed Month ${completedMonths} of ${config.baseMonth} for ${s.course} (${s.level}).\n\nThank you for your continued support!\n*${appConfig.appName || "Smaartus Classes"}*`;
+      const m2 = `📋 *[${appConfig.appName || "Smaartus Classes"}] Extension Fee Notice*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\nThis is a friendly reminder that *${s.firstName}* has entered Extension Month ${overdueMonths || 1} for ${s.course}.\n\n• *Extension Fee Due:* ₹${config.extFee}\n\nPlease settle the fee at your earliest convenience to continue seamless learning.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
       const m3 = `🎉 *Happy Birthday, ${s.firstName}!* 🎂\n\nWishing you a fantastic birthday filled with joy and excitement! Keep reaching for the stars with us at *${appConfig.appName || "Smaartus Classes"}*! 🌟`;
 
       container.innerHTML = `
@@ -1672,7 +1650,6 @@ function openAdminSettingsModal() {
       document.getElementById('studentModal').classList.add('hidden');
     }
 
-    /* --- STUDENT FORM MODAL --- */
     function saveStudent(e) {
       e.preventDefault();
       const id = document.getElementById('studentId').value || 'STD-' + Date.now().toString().slice(-4);
@@ -1757,7 +1734,9 @@ function openAdminSettingsModal() {
       document.getElementById('promoteStudentName').innerText = `${s.firstName} ${s.surname}`;
       document.getElementById('promoteCurrentLevel').innerText = s.level;
       document.getElementById('promoteNextLevel').value = 'Level ' + ((parseInt(s.level.replace(/\D/g, '')) || 1) + 1);
-      document.getElementById('promoteFee').value = courseConfig[s.course]?.baseFee || 3500;
+      
+      const config = getCourseFees(s.course);
+      document.getElementById('promoteFee').value = config.baseFee;
       document.getElementById('promoteModal').classList.remove('hidden');
     }
 
@@ -1770,7 +1749,7 @@ function openAdminSettingsModal() {
       if (!s) return;
 
       const nextLevel = document.getElementById('promoteNextLevel').value;
-      const feeAmount = parseFloat(document.getElementById('promoteFee').value) || 3500;
+      const feeAmount = parseFloat(document.getElementById('promoteFee').value) || 3000;
       const today = new Date().toISOString().split('T')[0];
 
       s.level = nextLevel;
@@ -1782,6 +1761,7 @@ function openAdminSettingsModal() {
         type: 'Income',
         category: 'Base Course Fee',
         amount: feeAmount,
+        studentId: s.id,
         notes: `${s.firstName} ${s.surname} - ${s.course} (${nextLevel}) - ${s.branch}`
       });
 
@@ -1919,14 +1899,14 @@ function openAdminSettingsModal() {
         document.getElementById('ledgerAutoLevel').value = s.level;
         document.getElementById('ledgerAutoBranch').value = s.branch;
 
-        const config = courseConfig[s.course] || { registrationFee: 0, baseFee: 3500, extensionFee: 800 };
+        const config = getCourseFees(s.course);
         
         if (category === 'Registration Fee') {
-          document.getElementById('ledgerAmount').value = config.registrationFee || 1500;
+          document.getElementById('ledgerAmount').value = config.regFee || 1500;
         } else if (category === 'Base Course Fee') {
           document.getElementById('ledgerAmount').value = config.baseFee;
         } else if (category === 'Extension Monthly Fee') {
-          document.getElementById('ledgerAmount').value = config.extensionFee;
+          document.getElementById('ledgerAmount').value = config.extFee;
         }
 
         document.getElementById('ledgerNotes').value = `${s.firstName} ${s.surname} - ${s.course} (${s.level}) - ${s.branch}`;
@@ -1949,6 +1929,7 @@ function openAdminSettingsModal() {
         ledger = ledger.filter(t => t.id !== id);
         renderLedger();
         generateAllReports();
+        checkAllNotifications(false);
         syncDataToGoogleDrive(true);
       }
     }
@@ -1962,6 +1943,7 @@ function openAdminSettingsModal() {
       const txId = document.getElementById('ledgerTxId').value;
       const type = document.getElementById('ledgerType').value;
       const category = document.getElementById('ledgerCategory').value;
+      const stdId = document.getElementById('ledgerStudentSelect').value;
       
       let noteDetails = document.getElementById('ledgerNotes').value;
       if (type === 'Expense' && !noteDetails.includes('Branch')) {
@@ -1975,6 +1957,7 @@ function openAdminSettingsModal() {
         type: type,
         category: category,
         amount: parseFloat(document.getElementById('ledgerAmount').value) || 0,
+        studentId: stdId || null,
         notes: noteDetails
       };
 
@@ -1988,6 +1971,7 @@ function openAdminSettingsModal() {
       closeLedgerModal();
       renderLedger();
       generateAllReports(); 
+      checkAllNotifications(false);
       syncDataToGoogleDrive(true);
     }
 
@@ -2026,10 +2010,16 @@ function openAdminSettingsModal() {
 
       filteredStds.forEach(s => {
         const completedMonths = calculateCompletedMonths(s.startDate);
-        const config = courseConfig[s.course] || Object.values(courseConfig)[0] || { baseMonths: 3, baseFee: 3000, extensionFee: 800 };
-        if (completedMonths > config.baseMonths) {
-          const overdueMonths = completedMonths - config.baseMonths;
-          pendingExtensionSum += (overdueMonths * config.extensionFee);
+        const config = getCourseFees(s.course);
+        if (completedMonths > config.baseMonth) {
+          const totalExtPaid = ledger
+            .filter(t => t.studentId === s.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
+            .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+          
+          const paidExtMonths = Math.floor(totalExtPaid / (config.extFee || 1000));
+          const overdueMonths = Math.max(0, (completedMonths - config.baseMonth) - paidExtMonths);
+          
+          pendingExtensionSum += (overdueMonths * config.extFee);
         }
       });
 
@@ -2092,24 +2082,32 @@ function openAdminSettingsModal() {
 
       filteredStds.forEach(s => {
         const completedMonths = calculateCompletedMonths(s.startDate);
-        const config = courseConfig[s.course] || Object.values(courseConfig)[0] || { baseMonths: 3, baseFee: 3000, extensionFee: 800 };
-        if (completedMonths > config.baseMonths) {
-          defaulterCount++;
-          const overdueMonths = completedMonths - config.baseMonths;
-          const dueAmt = overdueMonths * config.extensionFee;
-          const tr = document.createElement('tr');
-          tr.className = "hover:bg-slate-700/30";
-          tr.innerHTML = `
-            <td class="p-2 font-semibold text-white">${s.firstName} ${s.surname}<span class="block text-[10px] text-slate-400">${s.branch} • ${s.course}</span></td>
-            <td class="p-2 text-amber-400 font-medium">${overdueMonths} Month(s)</td>
-            <td class="p-2 font-bold text-rose-400">₹${dueAmt}</td>
-            <td class="p-2 text-right">
-              <button onclick="triggerWA('${s.mobile}', \`${encodeURIComponent(`Extension fee due for ${s.firstName}: ₹${dueAmt}`)}\`)" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded-md text-[10px] font-bold shadow transition">
-                WhatsApp Fee
-              </button>
-            </td>
-          `;
-          defaultersBody.appendChild(tr);
+        const config = getCourseFees(s.course);
+        if (completedMonths > config.baseMonth) {
+          const totalExtPaid = ledger
+            .filter(t => t.studentId === s.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
+            .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+
+          const paidExtMonths = Math.floor(totalExtPaid / (config.extFee || 1000));
+          const overdueMonths = Math.max(0, (completedMonths - config.baseMonth) - paidExtMonths);
+
+          if (overdueMonths > 0) {
+            defaulterCount++;
+            const dueAmt = overdueMonths * config.extFee;
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-700/30";
+            tr.innerHTML = `
+              <td class="p-2 font-semibold text-white">${s.firstName} ${s.surname}<span class="block text-[10px] text-slate-400">${s.branch} • ${s.course}</span></td>
+              <td class="p-2 text-amber-400 font-medium">${overdueMonths} Month(s)</td>
+              <td class="p-2 font-bold text-rose-400">₹${dueAmt}</td>
+              <td class="p-2 text-right">
+                <button onclick="triggerWA('${s.mobile}', \`${encodeURIComponent(`Extension fee due for ${s.firstName}: ₹${dueAmt}`)}\`)" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded-md text-[10px] font-bold shadow transition">
+                  WhatsApp Fee
+                </button>
+              </td>
+            `;
+            defaultersBody.appendChild(tr);
+          }
         }
       });
       document.getElementById('defaulterCountBadge').innerText = `${defaulterCount} Defaulters`;
@@ -2122,8 +2120,8 @@ function openAdminSettingsModal() {
         levelCounts[s.level] = (levelCounts[s.level] || 0) + 1;
 
         const completedMonths = calculateCompletedMonths(s.startDate);
-        const config = courseConfig[s.course] || Object.values(courseConfig)[0] || { baseMonths: 3, baseFee: 3000, extensionFee: 800 };
-        if (completedMonths >= config.baseMonths) {
+        const config = getCourseFees(s.course);
+        if (completedMonths >= config.baseMonth) {
           const tr = document.createElement('tr');
           tr.className = "hover:bg-slate-700/30";
           tr.innerHTML = `
@@ -2182,7 +2180,7 @@ function openAdminSettingsModal() {
       lucide.createIcons();
     }
 
-    /* --- NOTIFICATIONS --- */
+    /* --- NOTIFICATIONS ENGINE --- */
     function checkAllNotifications(manualClick) {
       const todayYYYYMMDD = new Date().toISOString().slice(0, 10);
       const todayMMDD = todayYYYYMMDD.slice(5, 10);
@@ -2213,25 +2211,33 @@ function openAdminSettingsModal() {
 
       students.forEach(s => {
         const completedMonths = calculateCompletedMonths(s.startDate);
-        const config = courseConfig[s.course] || Object.values(courseConfig)[0] || { baseMonths: 3, baseFee: 3000, extensionFee: 800 };
-        if (completedMonths > config.baseMonths) {
-          totalAlertsCount++;
-          const overdueMonths = completedMonths - config.baseMonths;
-          feedDiv.innerHTML += `
-            <div class="bg-slate-900/80 p-3 rounded-xl border border-rose-500/30 space-y-1.5">
-              <div class="flex justify-between items-center">
-                <span class="text-rose-400 text-xs font-bold flex items-center gap-1">📋 Extension Fee Notice</span>
-                <span class="text-[10px] text-slate-400">${s.branch}</span>
+        const config = getCourseFees(s.course);
+        if (completedMonths > config.baseMonth) {
+          const totalExtPaid = ledger
+            .filter(t => t.studentId === s.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
+            .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+
+          const paidExtMonths = Math.floor(totalExtPaid / (config.extFee || 1000));
+          const overdueMonths = Math.max(0, (completedMonths - config.baseMonth) - paidExtMonths);
+
+          if (overdueMonths > 0) {
+            totalAlertsCount++;
+            feedDiv.innerHTML += `
+              <div class="bg-slate-900/80 p-3 rounded-xl border border-rose-500/30 space-y-1.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-rose-400 text-xs font-bold flex items-center gap-1">📋 Extension Fee Notice</span>
+                  <span class="text-[10px] text-slate-400">${s.branch}</span>
+                </div>
+                <p class="font-bold text-white text-sm">${s.firstName} ${s.surname} (${s.course})</p>
+                <div class="flex justify-between items-center pt-1">
+                  <span class="text-xs text-amber-400 font-semibold">Ext Month +${overdueMonths} (₹${overdueMonths * config.extFee})</span>
+                  <button onclick="triggerWA('${s.mobile}', \`${encodeURIComponent(`Extension fee due for ${s.firstName}: ₹${overdueMonths * config.extFee}`)}\`)" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px]">
+                    Send Notice
+                  </button>
+                </div>
               </div>
-              <p class="font-bold text-white text-sm">${s.firstName} ${s.surname} (${s.course})</p>
-              <div class="flex justify-between items-center pt-1">
-                <span class="text-xs text-amber-400 font-semibold">Ext Month +${overdueMonths} (₹${overdueMonths * config.extensionFee})</span>
-                <button onclick="triggerWA('${s.mobile}', \`${encodeURIComponent(`Extension fee due for ${s.firstName}: ₹${overdueMonths * config.extensionFee}`)}\`)" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px]">
-                  Send Notice
-                </button>
-              </div>
-            </div>
-          `;
+            `;
+          }
         }
       });
 
@@ -2252,7 +2258,6 @@ function openAdminSettingsModal() {
     function markAllNotifsAsRead() {
       const todayYYYYMMDD = new Date().toISOString().slice(0, 10);
       readNotifsState.lastReadDate = todayYYYYMMDD;
-      saveDataToStorage();
       document.getElementById('notifBadge').classList.add('hidden');
       closeNotificationModal();
       showToast("Notifications marked as read.");
@@ -2275,158 +2280,6 @@ function openAdminSettingsModal() {
       document.body.removeChild(link);
       showToast("Data backup CSV generated!");
     }
-
-    function saveAdminSettings() {
-  try {
-    // 1. Read Application & Security Settings
-    const appNameInput = document.getElementById('settingAppName');
-    const adminPinInput = document.getElementById('settingAdminPin');
-    const biometricSelect = document.getElementById('settingBiometricEnabled');
-    const autoBackupCheckbox = document.getElementById('settingAutoDriveBackup');
-
-    if (appNameInput) appConfig.appName = appNameInput.value.trim() || "Smaartus Operations";
-    if (adminPinInput && adminPinInput.value.trim()) activePin = adminPinInput.value.trim();
-    if (biometricSelect) appConfig.biometricEnabled = biometricSelect.value === 'true';
-    if (autoBackupCheckbox) appConfig.autoDriveBackup = autoBackupCheckbox.checked;
-
-    // 2. Read Courses & Fee Master
-    const courseCards = document.querySelectorAll('#courseMasterListContainer .course-master-card');
-    if (courseCards.length > 0) {
-      const updatedCourses = [];
-      courseCards.forEach(card => {
-        const name = card.querySelector('.course-name-input')?.value.trim();
-        const baseMonth = parseInt(card.querySelector('.course-basemonth-input')?.value) || 3;
-        const regFee = parseFloat(card.querySelector('.course-regfee-input')?.value) || 0;
-        const baseFee = parseFloat(card.querySelector('.course-basefee-input')?.value) || 0;
-        const extFee = parseFloat(card.querySelector('.course-extfee-input')?.value) || 0;
-
-        if (name) {
-          updatedCourses.push({ name, baseMonth, regFee, baseFee, extFee });
-        }
-      });
-      if (updatedCourses.length > 0) courseMaster = updatedCourses;
-    }
-
-    // 3. Read Income & Expense Categories
-    const incomeCatInput = document.getElementById('settingIncomeCategories');
-    const expenseCatInput = document.getElementById('settingExpenseCategories');
-
-    if (incomeCatInput) {
-      appConfig.incomeCategories = incomeCatInput.value.split(',').map(c => c.trim()).filter(Boolean);
-    }
-    if (expenseCatInput) {
-      appConfig.expenseCategories = expenseCatInput.value.split(',').map(c => c.trim()).filter(Boolean);
-    }
-
-    // 4. Read Custom Fields Master
-    const customFieldRows = document.querySelectorAll('#customFieldsMasterContainer .custom-field-row');
-    if (customFieldRows.length > 0) {
-      const updatedFields = [];
-      customFieldRows.forEach(row => {
-        const fieldName = row.querySelector('.custom-field-name')?.value.trim();
-        const fieldType = row.querySelector('.custom-field-type')?.value;
-        if (fieldName) {
-          updatedFields.push({ name: fieldName, type: fieldType || 'text' });
-        }
-      });
-      appConfig.customFields = updatedFields;
-    }
-
-    // 5. Persist Configuration
-    localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
-
-    // 6. Direct Google Drive Backup
-    if (typeof syncDataToGoogleDrive === 'function') {
-      syncDataToGoogleDrive(false);
-    }
-
-    // 7. Refresh UI & Close Modal
-    if (typeof applyAppConfigUI === 'function') applyAppConfigUI();
-    closeAdminSettingsModal();
-    if (typeof showToast === 'function') showToast("Admin Master Settings saved successfully!");
-
-  } catch (err) {
-    console.error("Error saving admin settings:", err);
-    if (typeof showToast === 'function') showToast("Failed to save settings.");
-  }
-}
-
-function closeAdminSettingsModal() {
-  const modal = document.getElementById('adminSettingsModal');
-  if (modal) modal.classList.add('hidden');
-}
-
-function addIncomeTransaction(studentId, amount, category, dateStr) {
-  // 1. Record Ledger Entry
-  const transaction = {
-    id: Date.now(),
-    date: dateStr || new Date().toISOString().split('T')[0],
-    type: 'Income',
-    category: category,
-    amount: parseFloat(amount),
-    studentId: studentId
-  };
-  ledgerData.push(transaction);
-
-  // 2. If Extension Fee, update student's paid extension count directly
-  if (category === "Extension Monthly Fee" || (category && category.includes("Extension"))) {
-    const student = studentsData.find(s => s.id === studentId || s.id == studentId);
-    if (student) {
-      const course = (typeof courseMaster !== 'undefined' ? courseMaster : []).find(c => c.name === student.course) || { extFee: 800 };
-      const extFeeUnit = course.extFee || 800;
-      const monthsAdded = Math.max(1, Math.round(parseFloat(amount) / extFeeUnit));
-      
-      student.paidExtensionMonths = (student.paidExtensionMonths || 0) + monthsAdded;
-    }
-  }
-
-  // 3. Re-calculate notifications and perform cloud sync
-  if (typeof generateNotifications === 'function') generateNotifications();
-  if (typeof syncDataToGoogleDrive === 'function') syncDataToGoogleDrive(false);
-  if (typeof renderLedger === 'function') renderLedger();
-  if (typeof showToast === 'function') showToast("Extension fee recorded & notifications updated!");
-}
-
-function generateNotifications() {
-  const notifications = [];
-  const today = new Date();
-
-  studentsData.forEach(student => {
-    // Get course fees (defaulting extension fee to 800)
-    const course = courseMaster.find(c => c.name === student.course) || { extFee: 800, baseMonth: 3 };
-    const extMonthlyFee = course.extFee || 800;
-
-    // Sum all extension fees paid by this student in the Ledger
-    const totalExtIncome = ledgerData
-      .filter(t => t.studentId === student.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
-      .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-
-    const paidExtMonths = Math.floor(totalExtIncome / extMonthlyFee);
-
-    // Calculate elapsed months since base course completion
-    const startDate = new Date(student.joinDate || student.startDate || today);
-    const monthsElapsed = (today.getFullYear() - startDate.getFullYear()) * 12 + (today.getMonth() - startDate.getMonth());
-    const extMonthsRequired = Math.max(0, monthsElapsed - (course.baseMonth || 3));
-
-    // Determine unpaid extension months
-    const pendingExtMonths = extMonthsRequired - paidExtMonths;
-
-    if (pendingExtMonths > 0) {
-      notifications.push({
-        id: `ext_${student.id}`,
-        type: 'Extension Fee Notice',
-        studentName: `${student.name} (${student.course})`,
-        branch: student.branch || 'Sanpada',
-        message: `Ext Month +${pendingExtMonths} (₹${pendingExtMonths * extMonthlyFee})`,
-        pendingMonths: pendingExtMonths,
-        amount: pendingExtMonths * extMonthlyFee
-      });
-    }
-  });
-
-  // Render to UI
-  renderNotificationsUI(notifications);
-}
 
     /* --- TOAST --- */
     function showToast(msg) {
