@@ -1352,6 +1352,41 @@ function connectGoogleDriveOAuth() {
       showToast("Settings saved successfully!");
     }
 
+  function markNotificationsRead() {
+  try {
+    // 1. Clear active notification list in memory
+    unreadNotifications = [];
+
+    // 2. Hide or clear the notification badge count on the main bell icon
+    const badgeEl = document.getElementById('notificationBadge');
+    if (badgeEl) {
+      badgeEl.innerText = '0';
+      badgeEl.classList.add('hidden');
+    }
+
+    // 3. Clear the inner HTML list inside the Notification Modal
+    const listEl = document.getElementById('notificationsListContainer');
+    if (listEl) {
+      listEl.innerHTML = `<div class="p-6 text-center text-slate-400 font-medium">All notifications marked as read!</div>`;
+    }
+
+    // 4. Trigger Direct Cloud Drive Sync to save notification state
+    if (typeof syncToGoogleDrive === 'function') {
+      syncToGoogleDrive();
+    }
+
+    showToast("All notifications marked as read!");
+    
+    // 5. Close Modal after 1 second
+    setTimeout(() => {
+      closeModal('notificationsModal');
+    }, 1000);
+  } catch (err) {
+    console.error("Mark as read error:", err);
+    showToast("Failed to mark notifications as read.");
+  }
+}
+
     /* --- PIN LOCK --- */
     function pressPin(num) {
       if (enteredPin.length < 4) {
@@ -2186,6 +2221,86 @@ function connectGoogleDriveOAuth() {
       document.body.removeChild(link);
       showToast("Data backup CSV generated!");
     }
+
+    function saveAdminSettings() {
+  try {
+    // 1. Read Application & Security Settings
+    const appNameInput = document.getElementById('settingAppName');
+    const adminPinInput = document.getElementById('settingAdminPin');
+    const biometricSelect = document.getElementById('settingBiometricEnabled');
+    const autoBackupCheckbox = document.getElementById('settingAutoDriveBackup');
+
+    if (appNameInput) appConfig.appName = appNameInput.value.trim() || "Smaartus Operations";
+    if (adminPinInput && adminPinInput.value.trim()) activePin = adminPinInput.value.trim();
+    if (biometricSelect) appConfig.biometricEnabled = biometricSelect.value === 'true';
+    if (autoBackupCheckbox) appConfig.autoDriveBackup = autoBackupCheckbox.checked;
+
+    // 2. Read Courses & Fee Master
+    const courseCards = document.querySelectorAll('#courseMasterListContainer .course-master-card');
+    if (courseCards.length > 0) {
+      const updatedCourses = [];
+      courseCards.forEach(card => {
+        const name = card.querySelector('.course-name-input')?.value.trim();
+        const baseMonth = parseInt(card.querySelector('.course-basemonth-input')?.value) || 3;
+        const regFee = parseFloat(card.querySelector('.course-regfee-input')?.value) || 0;
+        const baseFee = parseFloat(card.querySelector('.course-basefee-input')?.value) || 0;
+        const extFee = parseFloat(card.querySelector('.course-extfee-input')?.value) || 0;
+
+        if (name) {
+          updatedCourses.push({ name, baseMonth, regFee, baseFee, extFee });
+        }
+      });
+      if (updatedCourses.length > 0) courseMaster = updatedCourses;
+    }
+
+    // 3. Read Income & Expense Categories
+    const incomeCatInput = document.getElementById('settingIncomeCategories');
+    const expenseCatInput = document.getElementById('settingExpenseCategories');
+
+    if (incomeCatInput) {
+      appConfig.incomeCategories = incomeCatInput.value.split(',').map(c => c.trim()).filter(Boolean);
+    }
+    if (expenseCatInput) {
+      appConfig.expenseCategories = expenseCatInput.value.split(',').map(c => c.trim()).filter(Boolean);
+    }
+
+    // 4. Read Custom Fields Master
+    const customFieldRows = document.querySelectorAll('#customFieldsMasterContainer .custom-field-row');
+    if (customFieldRows.length > 0) {
+      const updatedFields = [];
+      customFieldRows.forEach(row => {
+        const fieldName = row.querySelector('.custom-field-name')?.value.trim();
+        const fieldType = row.querySelector('.custom-field-type')?.value;
+        if (fieldName) {
+          updatedFields.push({ name: fieldName, type: fieldType || 'text' });
+        }
+      });
+      appConfig.customFields = updatedFields;
+    }
+
+    // 5. Persist Configuration
+    localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
+
+    // 6. Direct Google Drive Backup
+    if (typeof syncDataToGoogleDrive === 'function') {
+      syncDataToGoogleDrive(false);
+    }
+
+    // 7. Refresh UI & Close Modal
+    if (typeof applyAppConfigUI === 'function') applyAppConfigUI();
+    closeAdminSettingsModal();
+    if (typeof showToast === 'function') showToast("Admin Master Settings saved successfully!");
+
+  } catch (err) {
+    console.error("Error saving admin settings:", err);
+    if (typeof showToast === 'function') showToast("Failed to save settings.");
+  }
+}
+
+function closeAdminSettingsModal() {
+  const modal = document.getElementById('adminSettingsModal');
+  if (modal) modal.classList.add('hidden');
+}
 
     /* --- TOAST --- */
     function showToast(msg) {
