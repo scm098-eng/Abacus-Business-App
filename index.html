@@ -1286,11 +1286,65 @@ function connectGoogleDriveOAuth() {
       });
     }
 
-    function addCourseSettingRow() {
-      const newCourseName = "New Course " + (Object.keys(courseConfig).length + 1);
-      courseConfig[newCourseName] = { baseMonths: 3, registrationFee: 0, baseFee: 3000, extensionFee: 800 };
-      renderAdminCourseMasterRows();
-    }
+    let courseMaster = JSON.parse(localStorage.getItem('smaartus_course_master')) || [
+  { name: 'Abacus', baseMonth: 3, regFee: 1500, baseFee: 3500, extFee: 800 },
+  { name: 'Vedic Maths', baseMonth: 3, regFee: 1500, baseFee: 3500, extFee: 800 }
+];
+
+function addCourseSettingRow() {
+  const newCourseName = "New Course " + (courseMaster.length + 1);
+  courseMaster.push({
+    name: newCourseName,
+    baseMonth: 3,
+    regFee: 0,
+    baseFee: 3000,
+    extFee: 800
+  });
+  renderAdminCourseMasterRows();
+}
+
+function renderAdminCourseMasterRows() {
+  const container = document.getElementById('courseMasterListContainer');
+  if (!container) return;
+
+  container.innerHTML = courseMaster.map((course, idx) => `
+    <div class="course-master-card bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+      <div class="flex justify-between items-center">
+        <input type="text" value="${course.name}" class="course-name-input bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-white text-xs font-semibold w-1/2" placeholder="Course Name" />
+        <button type="button" onclick="deleteCourseSettingRow(${idx})" class="text-rose-400 hover:text-rose-300 text-xs font-semibold px-2 py-1 rounded bg-rose-500/10 border border-rose-500/20">Delete</button>
+      </div>
+      <div class="grid grid-cols-4 gap-2 text-[11px]">
+        <div>
+          <label class="block text-slate-400 mb-0.5">Base Month</label>
+          <input type="number" value="${course.baseMonth}" class="course-basemonth-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-0.5">Reg Fee</label>
+          <input type="number" value="${course.regFee}" class="course-regfee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-0.5">Base Fee</label>
+          <input type="number" value="${course.baseFee}" class="course-basefee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-0.5">Ext Fee</label>
+          <input type="number" value="${course.extFee}" class="course-extfee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function deleteCourseSettingRow(index) {
+  courseMaster.splice(index, 1);
+  renderAdminCourseMasterRows();
+}
+
+function openAdminSettingsModal() {
+  renderAdminCourseMasterRows(); // Populates course inputs
+  const modal = document.getElementById('adminSettingsModal');
+  if (modal) modal.classList.remove('hidden');
+}
 
     function deleteCourseSettingRow(cName) {
       if (Object.keys(courseConfig).length <= 1) {
