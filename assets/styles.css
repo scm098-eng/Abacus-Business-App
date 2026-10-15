@@ -1,0 +1,63 @@
+body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Dark Mode Date Picker Visibility Fix */
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) hue-rotate(180deg) brightness(1.5);
+  cursor: pointer;
+}
+
+/* Light Theme Contrast Adjustments */
+html:not(.dark) body { background-color: #f8fafc; color: #0f172a; }
+html:not(.dark) header, 
+html:not(.dark) nav, 
+html:not(.dark) .bg-slate-800, 
+html:not(.dark) .bg-slate-800\/80,
+html:not(.dark) .bg-slate-800\/90,
+html:not(.dark) .bg-slate-800\/60 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+html:not(.dark) input, 
+html:not(.dark) select, 
+html:not(.dark) textarea,
+html:not(.dark) .bg-slate-900,
+html:not(.dark) .bg-slate-900\/80,
+html:not(.dark) .bg-slate-900\/60 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+html:not(.dark) .text-white { color: #0f172a !important; }
+html:not(.dark) .text-slate-300, html:not(.dark) .text-slate-400 { color: #334155 !important; }
+
+/* Light theme button text contrast fixes */
+html:not(.dark) button.bg-slate-700\/70,
+html:not(.dark) button.bg-slate-700 {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+html:not(.dark) .bg-indigo-600 {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+html:not(.dark) .bg-emerald-600\/20 {
+  background-color: #d1fae5 !important;
+  color: #047857 !important;
+}
+html:not(.dark) .bg-indigo-600\/20 {
+  background-color: #e0e7ff !important;
+  color: #4338ca !important;
+}
+
+@media print {
+  body * { visibility: hidden; }
+  #printableArea, #printableArea * { visibility: visible; }
+  #printableArea { position: absolute; left: 0; top: 0; width: 100%; color: black !important; background: white !important; }
+  .no-print { display: none !important; }
+}
