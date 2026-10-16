@@ -649,7 +649,7 @@
             <div id="googleAccountStatus" class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800 mt-1 gap-2">
               <span id="googleAccountText" class="text-slate-300 text-xs font-mono truncate">Not Connected</span>
               <div class="flex space-x-1.5 shrink-0">
-                <button type="button" onclick="connectGoogleDriveOAuth()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
+                <button type="button" onclick="connectGoogleDriveOAuth(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
                   <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
                   <span id="gDriveBtnLabel">Connect Drive</span>
                 </button>
@@ -788,6 +788,15 @@
             <label class="block text-slate-400 mb-1">Start Date *</label>
             <input type="date" id="startDate" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
           </div>
+        </div>
+
+        <!-- FEE WAIVER OPTION -->
+        <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-700/60 flex items-center justify-between">
+          <div>
+            <span class="block text-xs font-semibold text-white">Waive Off Extension Fees</span>
+            <span class="text-[10px] text-slate-400">Exempt this student from monthly extension fee charges</span>
+          </div>
+          <input type="checkbox" id="waiveFeesCheckbox" class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" />
         </div>
 
         <div>
@@ -983,11 +992,11 @@
     let driveAccessToken = localStorage.getItem('smaartus_gdrive_token') || "";
     let tokenClient = null;
 
-    // SINGLE UNIFIED COURSE MASTER ARRAY
+    // SINGLE UNIFIED COURSE MASTER ARRAY WITH TOTAL LEVEL COUNT
     let courseMaster = JSON.parse(localStorage.getItem('smaartus_course_master')) || [
-      { name: 'Abacus', baseMonth: 3, regFee: 1500, baseFee: 3000, extFee: 1000 },
-      { name: 'Vedic Maths', baseMonth: 3, regFee: 1500, baseFee: 4000, extFee: 1000 },
-      { name: 'Rubik Cube', baseMonth: 2, regFee: 0, baseFee: 2500, extFee: 700 }
+      { name: 'Abacus', baseMonth: 3, totalLevels: 8, regFee: 1500, baseFee: 3000, extFee: 1000 },
+      { name: 'Vedic Maths', baseMonth: 3, totalLevels: 4, regFee: 1500, baseFee: 4000, extFee: 1000 },
+      { name: 'Rubik Cube', baseMonth: 2, totalLevels: 3, regFee: 0, baseFee: 2500, extFee: 700 }
     ];
 
     let categoriesConfig = JSON.parse(localStorage.getItem('smaartus_categories_config')) || {
@@ -1017,9 +1026,7 @@
       document.getElementById('attendanceDate').value = new Date().toISOString().split('T')[0];
 
       if (driveAccessToken) {
-        restoreFromGoogleDrive();
-      } else {
-        showToast("Please Connect Google Drive to load cloud data.");
+        connectGoogleDriveOAuth(false);
       }
     };
 
@@ -1033,7 +1040,7 @@
       if (driveAccessToken && appConfig.googleAccount) {
         gStatus.innerText = `Connected: ${appConfig.googleAccount}`;
         gStatus.className = "text-emerald-400 font-medium truncate";
-        document.getElementById('gDriveBtnLabel').innerText = "Reconnect";
+        document.getElementById('gDriveBtnLabel').innerText = "Connected";
       } else {
         gStatus.innerText = "Not Connected";
         gStatus.className = "text-slate-400 font-normal truncate";
@@ -1043,7 +1050,7 @@
 
     function getCourseFees(courseName) {
       const found = courseMaster.find(c => c.name.toLowerCase() === (courseName || '').toLowerCase());
-      return found || { baseMonth: 3, regFee: 1500, baseFee: 3000, extFee: 1000 };
+      return found || { baseMonth: 3, totalLevels: 8, regFee: 1500, baseFee: 3000, extFee: 1000 };
     }
 
     function populateCourseSelects() {
@@ -1121,9 +1128,9 @@
       return true;
     }
 
-    function connectGoogleDriveOAuth() {
+    function connectGoogleDriveOAuth(interactive = true) {
       if (initGoogleDriveOAuth()) {
-        tokenClient.requestAccessToken({ prompt: 'select_account' });
+        tokenClient.requestAccessToken({ prompt: interactive ? 'select_account' : '' });
       }
     }
 
@@ -1169,10 +1176,7 @@
             appConfig.lastBackupDate = new Date().toISOString().slice(0, 10);
             if (isManual) showToast("Cloud storage updated on Google Drive!");
           } else if (updateRes.status === 401) {
-            driveAccessToken = "";
-            localStorage.removeItem('smaartus_gdrive_token');
-            applyAppConfigUI();
-            if (isManual) showToast("Session expired. Please reconnect Google Drive.");
+            connectGoogleDriveOAuth(false);
           }
         } else {
           const fileMetadata = { name: fileName, mimeType: 'application/json' };
@@ -1280,22 +1284,26 @@
             <input type="text" value="${course.name}" class="course-name-input bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-white text-xs font-semibold w-1/2" placeholder="Course Name" />
             <button type="button" onclick="deleteCourseSettingRow(${idx})" class="text-rose-400 hover:text-rose-300 text-xs font-semibold px-2 py-1 rounded bg-rose-500/10 border border-rose-500/20">Delete</button>
           </div>
-          <div class="grid grid-cols-4 gap-2 text-[11px]">
+          <div class="grid grid-cols-5 gap-1.5 text-[10px]">
             <div>
-              <label class="block text-slate-400 mb-0.5">Base Month</label>
-              <input type="number" value="${course.baseMonth}" class="course-basemonth-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
+              <label class="block text-slate-400 mb-0.5">Base Mth</label>
+              <input type="number" value="${course.baseMonth}" class="course-basemonth-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1 text-white font-mono" />
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-0.5">Total Lvls</label>
+              <input type="number" value="${course.totalLevels || 8}" class="course-totallevels-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1 text-white font-mono" />
             </div>
             <div>
               <label class="block text-slate-400 mb-0.5">Reg Fee</label>
-              <input type="number" value="${course.regFee}" class="course-regfee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
+              <input type="number" value="${course.regFee}" class="course-regfee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1 text-white font-mono" />
             </div>
             <div>
               <label class="block text-slate-400 mb-0.5">Base Fee</label>
-              <input type="number" value="${course.baseFee}" class="course-basefee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
+              <input type="number" value="${course.baseFee}" class="course-basefee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1 text-white font-mono" />
             </div>
             <div>
               <label class="block text-slate-400 mb-0.5">Ext Fee</label>
-              <input type="number" value="${course.extFee}" class="course-extfee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono" />
+              <input type="number" value="${course.extFee}" class="course-extfee-input w-full bg-slate-900 border border-slate-700 rounded-lg p-1 text-white font-mono" />
             </div>
           </div>
         </div>
@@ -1306,6 +1314,7 @@
       courseMaster.push({
         name: "New Course " + (courseMaster.length + 1),
         baseMonth: 3,
+        totalLevels: 8,
         regFee: 0,
         baseFee: 3000,
         extFee: 800
@@ -1371,12 +1380,13 @@
           courseCards.forEach(card => {
             const name = card.querySelector('.course-name-input')?.value.trim();
             const baseMonth = parseInt(card.querySelector('.course-basemonth-input')?.value) || 3;
+            const totalLevels = parseInt(card.querySelector('.course-totallevels-input')?.value) || 8;
             const regFee = parseFloat(card.querySelector('.course-regfee-input')?.value) || 0;
             const baseFee = parseFloat(card.querySelector('.course-basefee-input')?.value) || 0;
             const extFee = parseFloat(card.querySelector('.course-extfee-input')?.value) || 0;
 
             if (name) {
-              updatedCourses.push({ name, baseMonth, regFee, baseFee, extFee });
+              updatedCourses.push({ name, baseMonth, totalLevels, regFee, baseFee, extFee });
             }
           });
           if (updatedCourses.length > 0) {
@@ -1524,7 +1534,11 @@
       filtered.forEach(s => {
         const completedMonths = calculateCompletedMonths(s.startDate);
         const config = getCourseFees(s.course);
-        const isExtension = completedMonths > config.baseMonth;
+        const currentLevelNum = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
+
+        const isGraduated = currentLevelNum > (config.totalLevels || 8);
+        const isWaived = s.waiveFees === true;
+        const isExtension = !isGraduated && !isWaived && (completedMonths > config.baseMonth);
         const overdueMonths = isExtension ? completedMonths - config.baseMonth : 0;
         const age = calculateAge(s.dob);
 
@@ -1536,7 +1550,11 @@
               <h3 class="font-bold text-white text-base">${s.firstName} ${s.surname}</h3>
               <p class="text-xs text-slate-400">${s.school || 'School Not Set'} • ${age} yrs</p>
             </div>
-            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.branch === 'Sanpada' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : s.branch === 'Juinagar' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-violet-500/10 text-violet-400 border-violet-500/30'}">${s.branch}</span>
+            <div class="flex flex-col items-end space-y-1">
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.branch === 'Sanpada' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : s.branch === 'Juinagar' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-violet-500/10 text-violet-400 border-violet-500/30'}">${s.branch}</span>
+              ${isGraduated ? '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">🎓 Graduated</span>' : ''}
+              ${isWaived ? '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">Fee Waived</span>' : ''}
+            </div>
           </div>
 
           <div class="grid grid-cols-2 gap-2 text-xs bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/40">
@@ -1550,7 +1568,9 @@
             </div>
             <div class="col-span-2">
               <span class="text-slate-400 block">Tenure Duration</span>
-              <span class="font-medium ${isExtension ? 'text-amber-400' : 'text-emerald-400'}">Month ${completedMonths} ${isExtension ? `(Ext +${overdueMonths})` : ''}</span>
+              <span class="font-medium ${isGraduated ? 'text-amber-300' : isWaived ? 'text-teal-300' : isExtension ? 'text-amber-400' : 'text-emerald-400'}">
+                ${isGraduated ? 'All Course Levels Completed (No Fee)' : isWaived ? 'Extension Fee Waived Off' : `Month ${completedMonths}${isExtension ? `(Ext +${overdueMonths})` : ''}`}
+              </span>
             </div>
           </div>
 
@@ -1623,6 +1643,7 @@
     function openStudentModal() {
       document.getElementById('studentForm').reset();
       document.getElementById('studentId').value = '';
+      document.getElementById('waiveFeesCheckbox').checked = false;
       document.getElementById('studentModalTitle').innerText = 'Add New Student';
 
       const cArea = document.getElementById('studentCustomFieldsFormArea');
@@ -1672,6 +1693,7 @@
         level: document.getElementById('level').value,
         startDate: document.getElementById('startDate').value,
         address: document.getElementById('address').value,
+        waiveFees: document.getElementById('waiveFeesCheckbox').checked,
         customData: customDataObj
       };
 
@@ -1682,7 +1704,7 @@
       closeStudentModal();
       renderStudents();
       checkAllNotifications(false);
-      syncDataToGoogleDrive(true);
+      syncDataToGoogleDrive(false);
     }
 
     function editStudent(id) {
@@ -1702,6 +1724,7 @@
       document.getElementById('level').value = s.level;
       document.getElementById('startDate').value = s.startDate;
       document.getElementById('address').value = s.address || '';
+      document.getElementById('waiveFeesCheckbox').checked = s.waiveFees === true;
       calculateAgeDisplay();
 
       if (s.customData) {
@@ -1720,7 +1743,7 @@
         students = students.filter(s => s.id !== id);
         renderStudents();
         checkAllNotifications(false);
-        syncDataToGoogleDrive(true);
+        syncDataToGoogleDrive(false);
       }
     }
 
@@ -1769,7 +1792,7 @@
       renderStudents();
       renderLedger();
       generateAllReports();
-      syncDataToGoogleDrive(true);
+      syncDataToGoogleDrive(false);
 
       const msg = `🎉 *[${appConfig.appName || "Smaartus Classes"}] Promotion & Fee Notice*\n\nDear Parent,\n\nCongratulations! *${s.firstName}* has successfully completed Level 1 and been promoted to *${nextLevel}*.\n\n• *Course Fee for ${nextLevel}:* ₹${feeAmount}\n\nKindly process the payment at your earliest convenience to confirm enrollment.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
       window.open(`https://wa.me/91${s.mobile}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -1906,7 +1929,7 @@
         } else if (category === 'Base Course Fee') {
           document.getElementById('ledgerAmount').value = config.baseFee;
         } else if (category === 'Extension Monthly Fee') {
-          document.getElementById('ledgerAmount').value = config.extFee;
+          document.getElementById('ledgerAmount').value = s.waiveFees ? 0 : config.extFee;
         }
 
         document.getElementById('ledgerNotes').value = `${s.firstName} ${s.surname} - ${s.course} (${s.level}) - ${s.branch}`;
@@ -1930,7 +1953,7 @@
         renderLedger();
         generateAllReports();
         checkAllNotifications(false);
-        syncDataToGoogleDrive(true);
+        syncDataToGoogleDrive(false);
       }
     }
 
@@ -1972,7 +1995,7 @@
       renderLedger();
       generateAllReports(); 
       checkAllNotifications(false);
-      syncDataToGoogleDrive(true);
+      syncDataToGoogleDrive(false);
     }
 
     /* --- REPORTS ENGINE --- */
@@ -2011,7 +2034,12 @@
       filteredStds.forEach(s => {
         const completedMonths = calculateCompletedMonths(s.startDate);
         const config = getCourseFees(s.course);
-        if (completedMonths > config.baseMonth) {
+        const currentLvl = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
+        
+        const isGraduated = currentLvl > (config.totalLevels || 8);
+        const isWaived = s.waiveFees === true;
+
+        if (!isGraduated && !isWaived && completedMonths > config.baseMonth) {
           const totalExtPaid = ledger
             .filter(t => t.studentId === s.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
             .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
@@ -2083,7 +2111,12 @@
       filteredStds.forEach(s => {
         const completedMonths = calculateCompletedMonths(s.startDate);
         const config = getCourseFees(s.course);
-        if (completedMonths > config.baseMonth) {
+        const currentLvl = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
+
+        const isGraduated = currentLvl > (config.totalLevels || 8);
+        const isWaived = s.waiveFees === true;
+
+        if (!isGraduated && !isWaived && completedMonths > config.baseMonth) {
           const totalExtPaid = ledger
             .filter(t => t.studentId === s.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
             .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
@@ -2212,7 +2245,12 @@
       students.forEach(s => {
         const completedMonths = calculateCompletedMonths(s.startDate);
         const config = getCourseFees(s.course);
-        if (completedMonths > config.baseMonth) {
+        const currentLvl = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
+
+        const isGraduated = currentLvl > (config.totalLevels || 8);
+        const isWaived = s.waiveFees === true;
+
+        if (!isGraduated && !isWaived && completedMonths > config.baseMonth) {
           const totalExtPaid = ledger
             .filter(t => t.studentId === s.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
             .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
