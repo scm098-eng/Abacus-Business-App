@@ -48,7 +48,8 @@
     ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
     /* Dark Mode Date Picker Visibility Fix */
-    .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    .dark input[type="date"]::-webkit-calendar-picker-indicator,
+    .dark input[type="month"]::-webkit-calendar-picker-indicator {
       filter: invert(1) hue-rotate(180deg) brightness(1.5);
       cursor: pointer;
     }
@@ -263,7 +264,7 @@
             <table class="w-full text-left text-sm text-slate-300">
               <thead class="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-10">
                 <tr>
-                  <th class="px-4 py-3">Date</th>
+                  <th class="px-4 py-3">Date (DD/MM/YYYY)</th>
                   <th class="px-4 py-3">Type</th>
                   <th class="px-4 py-3">Category</th>
                   <th class="px-4 py-3">Details / Reference</th>
@@ -302,7 +303,7 @@
             <i data-lucide="filter" class="w-3.5 h-3.5"></i>
             <span>Interactive Report Filters</span>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div>
               <label class="block text-xs text-slate-400 mb-1">Center / Branch</label>
               <select id="reportBranchFilter" onchange="generateAllReports()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
@@ -319,12 +320,17 @@
               </select>
             </div>
             <div>
-              <label class="block text-xs text-slate-400 mb-1">Month / Period Range</label>
-              <select id="reportPeriodFilter" onchange="generateAllReports()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              <label class="block text-xs text-slate-400 mb-1">Period Range</label>
+              <select id="reportPeriodFilter" onchange="handlePeriodFilterChange()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                 <option value="AllTime">All Time Data</option>
                 <option value="CurrentMonth">Current Month</option>
                 <option value="LastMonth">Last Month</option>
+                <option value="SpecificMonth">Select Particular Month</option>
               </select>
+            </div>
+            <div id="specificMonthContainer" class="hidden">
+              <label class="block text-xs text-slate-400 mb-1">Select Month / Year</label>
+              <input type="month" id="reportSpecificMonth" onchange="generateAllReports()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" />
             </div>
           </div>
         </div>
@@ -773,7 +779,7 @@
           </div>
           <div>
             <label class="block text-slate-400 mb-1">Course *</label>
-            <select id="course" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white">
+            <select id="course" required onchange="updateModalLevelOptions()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white">
               <!-- Dynamic Insertion -->
             </select>
           </div>
@@ -781,22 +787,15 @@
 
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-slate-400 mb-1">Level *</label>
-            <input type="text" id="level" required placeholder="Level 1" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
+            <label class="block text-slate-400 mb-1">Select Level *</label>
+            <select id="levelSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white">
+              <!-- Dynamically Populated according to Course Total Level Count -->
+            </select>
           </div>
           <div>
             <label class="block text-slate-400 mb-1">Start Date *</label>
             <input type="date" id="startDate" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
           </div>
-        </div>
-
-        <!-- FEE WAIVER OPTION -->
-        <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-700/60 flex items-center justify-between">
-          <div>
-            <span class="block text-xs font-semibold text-white">Waive Off Extension Fees</span>
-            <span class="text-[10px] text-slate-400">Exempt this student from monthly extension fee charges</span>
-          </div>
-          <input type="checkbox" id="waiveFeesCheckbox" class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" />
         </div>
 
         <div>
@@ -834,7 +833,9 @@
       <div class="space-y-3 text-xs">
         <div>
           <label class="block text-slate-400 mb-1">New Promoted Level *</label>
-          <input type="text" id="promoteNextLevel" placeholder="Level 2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
+          <select id="promoteNextLevelSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
+            <!-- Dynamically insertion -->
+          </select>
         </div>
         <div>
           <label class="block text-slate-400 mb-1">Promoted Level Base Fee (₹)</label>
@@ -904,14 +905,22 @@
           </div>
         </div>
 
-        <div id="expenseCenterContainer" class="hidden bg-slate-900/60 p-3 rounded-xl border border-slate-700/60">
-          <label class="block text-slate-400 mb-1">Allocated Center / Branch *</label>
-          <select id="ledgerExpenseBranch" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
-            <option value="Sanpada">Sanpada Center</option>
-            <option value="Juinagar">Juinagar Center</option>
-            <option value="Online">Online Batches</option>
-            <option value="General">General / Combined</option>
-          </select>
+        <div id="expenseCenterContainer" class="hidden bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 space-y-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Allocated Center / Branch *</label>
+            <select id="ledgerExpenseBranch" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
+              <option value="Sanpada">Sanpada Center</option>
+              <option value="Juinagar">Juinagar Center</option>
+              <option value="Online">Online Batches</option>
+              <option value="General">General / Combined</option>
+            </select>
+          </div>
+          <div id="waiveFeeStudentSelector" class="hidden">
+            <label class="block text-amber-300 font-semibold mb-1">Waive Fee For Student *</label>
+            <select id="ledgerWaiveStudentSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
+              <!-- Dynamic Options -->
+            </select>
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
@@ -975,6 +984,25 @@
       });
     }
 
+    /* --- DATE FORMATTERS (DD/MM/YYYY) --- */
+    function formatDateToDDMMYYYY(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    }
+
+    function formatDateToYYYYMMDD(dateStr) {
+      if (!dateStr) return '';
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+      return dateStr;
+    }
+
     /* --- APPLICATION STATE --- */
     let activePin = "1234";
     let biometricEnabled = true;
@@ -1001,8 +1029,12 @@
 
     let categoriesConfig = JSON.parse(localStorage.getItem('smaartus_categories_config')) || {
       income: ["Registration Fee", "Base Course Fee", "Extension Monthly Fee", "Book & Kit Fee", "Other Income"],
-      expense: ["Center Rent", "Faculty Salary", "Utilities & Electricity", "Equipment & Supplies", "Marketing & Print", "Other Expense"]
+      expense: ["Center Rent", "Faculty Salary", "Fee Waiver / Adjustment", "Utilities & Electricity", "Equipment & Supplies", "Marketing & Print", "Other Expense"]
     };
+
+    if (!categoriesConfig.expense.includes("Fee Waiver / Adjustment")) {
+      categoriesConfig.expense.push("Fee Waiver / Adjustment");
+    }
 
     let customFields = JSON.parse(localStorage.getItem('smaartus_custom_fields')) || [];
     let readNotifsState = { lastReadDate: "" };
@@ -1014,7 +1046,7 @@
 
     /* --- INITIALIZATION --- */
     window.onload = function() {
-      // PERSISTENT AUTH CHECK: Check if session is already active
+      // PERSISTENT AUTH CHECK
       const isAuthenticated = localStorage.getItem('smaartus_auth_session') === 'active';
       if (isAuthenticated) {
         document.getElementById('pinLockScreen').classList.add('hidden');
@@ -1067,6 +1099,21 @@
         modalSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`;
         reportSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`;
       });
+
+      updateModalLevelOptions();
+    }
+
+    function updateModalLevelOptions() {
+      const selectedCourseName = document.getElementById('course').value;
+      const course = getCourseFees(selectedCourseName);
+      const levelSelect = document.getElementById('levelSelect');
+      levelSelect.innerHTML = '';
+
+      const totalLevels = course.totalLevels || 8;
+      for (let i = 1; i <= totalLevels; i++) {
+        levelSelect.innerHTML += `<option value="Level ${i}">Level ${i}</option>`;
+      }
+      levelSelect.innerHTML += `<option value="Level ${totalLevels + 1} (Graduated)">Graduated / Course Completed</option>`;
     }
 
     function toggleTheme() {
@@ -1537,8 +1584,10 @@
         const currentLevelNum = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
 
         const isGraduated = currentLevelNum > (config.totalLevels || 8);
-        const isWaived = s.waiveFees === true;
-        const isExtension = !isGraduated && !isWaived && (completedMonths > config.baseMonth);
+        
+        // Check for specific student fee waiver in ledger expenses
+        const hasWaivedFee = ledger.some(t => t.type === 'Expense' && t.category === 'Fee Waiver / Adjustment' && t.studentId === s.id);
+        const isExtension = !isGraduated && !hasWaivedFee && (completedMonths > config.baseMonth);
         const overdueMonths = isExtension ? completedMonths - config.baseMonth : 0;
         const age = calculateAge(s.dob);
 
@@ -1553,7 +1602,7 @@
             <div class="flex flex-col items-end space-y-1">
               <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.branch === 'Sanpada' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : s.branch === 'Juinagar' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-violet-500/10 text-violet-400 border-violet-500/30'}">${s.branch}</span>
               ${isGraduated ? '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">🎓 Graduated</span>' : ''}
-              ${isWaived ? '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">Fee Waived</span>' : ''}
+              ${hasWaivedFee ? '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">Fee Waived</span>' : ''}
             </div>
           </div>
 
@@ -1564,12 +1613,12 @@
             </div>
             <div>
               <span class="text-slate-400 block">Start Date</span>
-              <span class="font-medium text-slate-300">${s.startDate}</span>
+              <span class="font-medium text-slate-300">${formatDateToDDMMYYYY(s.startDate)}</span>
             </div>
             <div class="col-span-2">
               <span class="text-slate-400 block">Tenure Duration</span>
-              <span class="font-medium ${isGraduated ? 'text-amber-300' : isWaived ? 'text-teal-300' : isExtension ? 'text-amber-400' : 'text-emerald-400'}">
-                ${isGraduated ? 'All Course Levels Completed (No Fee)' : isWaived ? 'Extension Fee Waived Off' : `Month ${completedMonths}${isExtension ? `(Ext +${overdueMonths})` : ''}`}
+              <span class="font-medium ${isGraduated ? 'text-amber-300' : hasWaivedFee ? 'text-teal-300' : isExtension ? 'text-amber-400' : 'text-emerald-400'}">
+                ${isGraduated ? 'All Course Levels Completed (No Fee)' : hasWaivedFee ? 'Extension Fee Waived Off' : `Month ${completedMonths}${isExtension ? `(Ext +${overdueMonths})` : ''}`}
               </span>
             </div>
           </div>
@@ -1643,7 +1692,6 @@
     function openStudentModal() {
       document.getElementById('studentForm').reset();
       document.getElementById('studentId').value = '';
-      document.getElementById('waiveFeesCheckbox').checked = false;
       document.getElementById('studentModalTitle').innerText = 'Add New Student';
 
       const cArea = document.getElementById('studentCustomFieldsFormArea');
@@ -1664,6 +1712,7 @@
         cArea.classList.add('hidden');
       }
 
+      updateModalLevelOptions();
       document.getElementById('studentModal').classList.remove('hidden');
     }
 
@@ -1690,10 +1739,9 @@
         school: document.getElementById('school').value,
         branch: document.getElementById('branch').value,
         course: document.getElementById('course').value,
-        level: document.getElementById('level').value,
+        level: document.getElementById('levelSelect').value,
         startDate: document.getElementById('startDate').value,
         address: document.getElementById('address').value,
-        waiveFees: document.getElementById('waiveFeesCheckbox').checked,
         customData: customDataObj
       };
 
@@ -1721,10 +1769,12 @@
       document.getElementById('school').value = s.school || '';
       document.getElementById('branch').value = s.branch;
       document.getElementById('course').value = s.course;
-      document.getElementById('level').value = s.level;
+      
+      updateModalLevelOptions();
+      document.getElementById('levelSelect').value = s.level;
+
       document.getElementById('startDate').value = s.startDate;
       document.getElementById('address').value = s.address || '';
-      document.getElementById('waiveFeesCheckbox').checked = s.waiveFees === true;
       calculateAgeDisplay();
 
       if (s.customData) {
@@ -1756,10 +1806,20 @@
       promoteTargetId = id;
       document.getElementById('promoteStudentName').innerText = `${s.firstName} ${s.surname}`;
       document.getElementById('promoteCurrentLevel').innerText = s.level;
-      document.getElementById('promoteNextLevel').value = 'Level ' + ((parseInt(s.level.replace(/\D/g, '')) || 1) + 1);
-      
-      const config = getCourseFees(s.course);
-      document.getElementById('promoteFee').value = config.baseFee;
+
+      const course = getCourseFees(s.course);
+      const promoteSelect = document.getElementById('promoteNextLevelSelect');
+      promoteSelect.innerHTML = '';
+
+      const totalLevels = course.totalLevels || 8;
+      const currentLevelNum = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
+
+      for (let i = 1; i <= totalLevels; i++) {
+        promoteSelect.innerHTML += `<option value="Level ${i}" ${i === currentLevelNum + 1 ? 'selected' : ''}>Level ${i}</option>`;
+      }
+      promoteSelect.innerHTML += `<option value="Level ${totalLevels + 1} (Graduated)" ${currentLevelNum >= totalLevels ? 'selected' : ''}>Graduated / Course Completed</option>`;
+
+      document.getElementById('promoteFee').value = course.baseFee;
       document.getElementById('promoteModal').classList.remove('hidden');
     }
 
@@ -1771,7 +1831,7 @@
       const s = students.find(x => x.id === promoteTargetId);
       if (!s) return;
 
-      const nextLevel = document.getElementById('promoteNextLevel').value;
+      const nextLevel = document.getElementById('promoteNextLevelSelect').value;
       const feeAmount = parseFloat(document.getElementById('promoteFee').value) || 3000;
       const today = new Date().toISOString().split('T')[0];
 
@@ -1794,7 +1854,7 @@
       generateAllReports();
       syncDataToGoogleDrive(false);
 
-      const msg = `🎉 *[${appConfig.appName || "Smaartus Classes"}] Promotion & Fee Notice*\n\nDear Parent,\n\nCongratulations! *${s.firstName}* has successfully completed Level 1 and been promoted to *${nextLevel}*.\n\n• *Course Fee for ${nextLevel}:* ₹${feeAmount}\n\nKindly process the payment at your earliest convenience to confirm enrollment.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
+      const msg = `🎉 *[${appConfig.appName || "Smaartus Classes"}] Promotion & Fee Notice*\n\nDear Parent,\n\nCongratulations! *${s.firstName}* has been promoted to *${nextLevel}*.\n\n• *Course Fee for ${nextLevel}:* ₹${feeAmount}\n\nKindly process the payment at your earliest convenience to confirm enrollment.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
       window.open(`https://wa.me/91${s.mobile}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
@@ -1847,7 +1907,7 @@
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-700/30 transition text-xs";
         tr.innerHTML = `
-          <td class="px-4 py-3 font-mono text-slate-400">${item.date}</td>
+          <td class="px-4 py-3 font-mono text-slate-400">${formatDateToDDMMYYYY(item.date)}</td>
           <td class="px-4 py-3">
             <span class="px-2 py-0.5 rounded-full font-bold ${item.type === 'Income' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">${item.type}</span>
           </td>
@@ -1879,8 +1939,13 @@
 
       const stdSelect = document.getElementById('ledgerStudentSelect');
       stdSelect.innerHTML = `<option value="">-- Choose Student --</option>`;
+      
+      const waiveStdSelect = document.getElementById('ledgerWaiveStudentSelect');
+      waiveStdSelect.innerHTML = `<option value="">-- Select Student for Fee Waiver --</option>`;
+
       students.forEach(s => {
         stdSelect.innerHTML += `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch})</option>`;
+        waiveStdSelect.innerHTML += `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch})</option>`;
       });
 
       if (!editId) {
@@ -1899,6 +1964,7 @@
       
       const stdContainer = document.getElementById('studentSelectorContainer');
       const expContainer = document.getElementById('expenseCenterContainer');
+      const waiveStdSelector = document.getElementById('waiveFeeStudentSelector');
 
       if (type === 'Income' && (category.includes('Fee') || category.includes('Base') || category.includes('Extension') || category.includes('Registration'))) {
         stdContainer.classList.remove('hidden');
@@ -1906,6 +1972,12 @@
       } else if (type === 'Expense') {
         stdContainer.classList.add('hidden');
         expContainer.classList.remove('hidden');
+        
+        if (category === 'Fee Waiver / Adjustment') {
+          waiveStdSelector.classList.remove('hidden');
+        } else {
+          waiveStdSelector.classList.add('hidden');
+        }
       } else {
         stdContainer.classList.add('hidden');
         expContainer.classList.add('hidden');
@@ -1929,7 +2001,7 @@
         } else if (category === 'Base Course Fee') {
           document.getElementById('ledgerAmount').value = config.baseFee;
         } else if (category === 'Extension Monthly Fee') {
-          document.getElementById('ledgerAmount').value = s.waiveFees ? 0 : config.extFee;
+          document.getElementById('ledgerAmount').value = config.extFee;
         }
 
         document.getElementById('ledgerNotes').value = `${s.firstName} ${s.surname} - ${s.course} (${s.level}) - ${s.branch}`;
@@ -1966,12 +2038,23 @@
       const txId = document.getElementById('ledgerTxId').value;
       const type = document.getElementById('ledgerType').value;
       const category = document.getElementById('ledgerCategory').value;
-      const stdId = document.getElementById('ledgerStudentSelect').value;
+      let stdId = document.getElementById('ledgerStudentSelect').value;
       
       let noteDetails = document.getElementById('ledgerNotes').value;
-      if (type === 'Expense' && !noteDetails.includes('Branch')) {
+
+      if (type === 'Expense') {
         const branchVal = document.getElementById('ledgerExpenseBranch').value;
-        noteDetails += ` (${branchVal})`;
+        if (!noteDetails.includes('Branch')) {
+          noteDetails += ` (${branchVal})`;
+        }
+
+        if (category === 'Fee Waiver / Adjustment') {
+          stdId = document.getElementById('ledgerWaiveStudentSelect').value;
+          const targetStudent = students.find(s => s.id === stdId);
+          if (targetStudent) {
+            noteDetails += ` - Waived for ${targetStudent.firstName} ${targetStudent.surname}`;
+          }
+        }
       }
 
       const itemData = {
@@ -1993,15 +2076,39 @@
 
       closeLedgerModal();
       renderLedger();
+      renderStudents();
       generateAllReports(); 
       checkAllNotifications(false);
       syncDataToGoogleDrive(false);
     }
 
     /* --- REPORTS ENGINE --- */
+    function handlePeriodFilterChange() {
+      const periodVal = document.getElementById('reportPeriodFilter').value;
+      const specificMonthContainer = document.getElementById('specificMonthContainer');
+      
+      if (periodVal === 'SpecificMonth') {
+        specificMonthContainer.classList.remove('hidden');
+        if (!document.getElementById('reportSpecificMonth').value) {
+          document.getElementById('reportSpecificMonth').value = new Date().toISOString().slice(0, 7);
+        }
+      } else {
+        specificMonthContainer.classList.add('hidden');
+      }
+      generateAllReports();
+    }
+
     function generateAllReports() {
       const branch = document.getElementById('reportBranchFilter').value;
       const course = document.getElementById('reportCourseFilter').value;
+      const period = document.getElementById('reportPeriodFilter').value;
+      const specificMonthVal = document.getElementById('reportSpecificMonth').value;
+
+      const now = new Date();
+      const currentMonthStr = now.toISOString().slice(0, 7);
+      
+      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthStr = lastMonthDate.toISOString().slice(0, 7);
 
       const filteredStds = students.filter(s => {
         const matchB = branch === 'All' || s.branch === branch;
@@ -2014,6 +2121,15 @@
       let pendingExtensionSum = 0;
 
       ledger.forEach(t => {
+        const tMonth = (t.date || '').slice(0, 7);
+        let matchesPeriod = true;
+
+        if (period === 'CurrentMonth') matchesPeriod = (tMonth === currentMonthStr);
+        else if (period === 'LastMonth') matchesPeriod = (tMonth === lastMonthStr);
+        else if (period === 'SpecificMonth') matchesPeriod = (tMonth === specificMonthVal);
+
+        if (!matchesPeriod) return;
+
         if (t.type === 'Income') {
           totalRev += t.amount;
           if (t.category.includes('Registration')) regFeeVal += t.amount;
@@ -2037,9 +2153,9 @@
         const currentLvl = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
         
         const isGraduated = currentLvl > (config.totalLevels || 8);
-        const isWaived = s.waiveFees === true;
+        const hasWaivedFee = ledger.some(t => t.type === 'Expense' && t.category === 'Fee Waiver / Adjustment' && t.studentId === s.id);
 
-        if (!isGraduated && !isWaived && completedMonths > config.baseMonth) {
+        if (!isGraduated && !hasWaivedFee && completedMonths > config.baseMonth) {
           const totalExtPaid = ledger
             .filter(t => t.studentId === s.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
             .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
@@ -2114,9 +2230,9 @@
         const currentLvl = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
 
         const isGraduated = currentLvl > (config.totalLevels || 8);
-        const isWaived = s.waiveFees === true;
+        const hasWaivedFee = ledger.some(t => t.type === 'Expense' && t.category === 'Fee Waiver / Adjustment' && t.studentId === s.id);
 
-        if (!isGraduated && !isWaived && completedMonths > config.baseMonth) {
+        if (!isGraduated && !hasWaivedFee && completedMonths > config.baseMonth) {
           const totalExtPaid = ledger
             .filter(t => t.studentId === s.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
             .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
@@ -2248,9 +2364,9 @@
         const currentLvl = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
 
         const isGraduated = currentLvl > (config.totalLevels || 8);
-        const isWaived = s.waiveFees === true;
+        const hasWaivedFee = ledger.some(t => t.type === 'Expense' && t.category === 'Fee Waiver / Adjustment' && t.studentId === s.id);
 
-        if (!isGraduated && !isWaived && completedMonths > config.baseMonth) {
+        if (!isGraduated && !hasWaivedFee && completedMonths > config.baseMonth) {
           const totalExtPaid = ledger
             .filter(t => t.studentId === s.id && (t.category === "Extension Monthly Fee" || t.category.includes("Extension")))
             .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
@@ -2307,7 +2423,7 @@
     function exportBackupData() {
       let csvContent = "data:text/csv;charset=utf-8,ID,First Name,Surname,Mobile,DOB,Branch,Course,Level,Start Date\n";
       students.forEach(s => {
-        csvContent += `${s.id},${s.firstName},${s.surname},${s.mobile},${s.dob},${s.branch},${s.course},${s.level},${s.startDate}\n`;
+        csvContent += `${s.id},${s.firstName},${s.surname},${s.mobile},${s.dob},${s.branch},${s.course},${s.level},${formatDateToDDMMYYYY(s.startDate)}\n`;
       });
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
