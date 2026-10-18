@@ -107,40 +107,6 @@
 </head>
 <body class="h-full flex flex-col antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-200">
 
-  <!-- PIN LOCK SCREEN -->
-  <div id="pinLockScreen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 p-6">
-    <div class="w-full max-w-sm text-center space-y-6">
-      <div class="inline-flex p-2 rounded-2xl bg-indigo-600/20 text-indigo-400 ring-1 ring-indigo-500/30">
-        <img src="Glossy Abacus Education Icon.png" alt="Logo" class="w-16 h-16 rounded-xl object-cover" />
-      </div>
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight text-white" id="lockScreenAppName">Smaartus Operations</h1>
-        <p class="text-sm text-slate-400 mt-1">Enter PIN or use Fingerprint / Face ID</p>
-      </div>
-      <div id="pinDots" class="flex justify-center space-x-3 my-4">
-        <div class="w-4 h-4 rounded-full border-2 border-slate-600"></div>
-        <div class="w-4 h-4 rounded-full border-2 border-slate-600"></div>
-        <div class="w-4 h-4 rounded-full border-2 border-slate-600"></div>
-        <div class="w-4 h-4 rounded-full border-2 border-slate-600"></div>
-      </div>
-      <div class="grid grid-cols-3 gap-3 max-w-[260px] mx-auto">
-        <button onclick="pressPin('1')" class="h-14 rounded-xl bg-slate-800 text-white text-xl font-semibold hover:bg-slate-700 active:scale-95 transition">1</button>
-        <button onclick="pressPin('2')" class="h-14 rounded-xl bg-slate-800 text-white text-xl font-semibold hover:bg-slate-700 active:scale-95 transition">2</button>
-        <button onclick="pressPin('3')" class="h-14 rounded-xl bg-slate-800 text-white text-xl font-semibold hover:bg-slate-700 active:scale-95 transition">3</button>
-        <button onclick="pressPin('4')" class="h-14 rounded-xl bg-slate-800 text-white text-xl font-semibold hover:bg-slate-700 active:scale-95 transition">4</button>
-        <button onclick="pressPin('5')" class="h-14 rounded-xl bg-slate-800 text-white text-xl font-semibold hover:bg-slate-700 active:scale-95 transition">5</button>
-        <button onclick="pressPin('6')" class="h-14 rounded-xl bg-slate-800 text-white text-xl font-semibold hover:bg-slate-700 active:scale-95 transition">6</button>
-        <button onclick="pressPin('7')" class="h-14 rounded-xl bg-slate-800 text-white text-xl font-semibold hover:bg-slate-700 active:scale-95 transition">7</button>
-        <button onclick="pressPin('8')" class="h-14 rounded-xl bg-slate-800 text-white text-xl font-semibold hover:bg-slate-700 active:scale-95 transition">8</button>
-        <button onclick="pressPin('9')" class="h-14 rounded-xl bg-slate-800 text-white text-xl font-semibold hover:bg-slate-700 active:scale-95 transition">9</button>
-        <button onclick="biometricUnlock()" class="h-14 rounded-xl bg-indigo-900/50 text-indigo-300 flex items-center justify-center hover:bg-indigo-800/50 transition"><i data-lucide="fingerprint" class="w-6 h-6"></i></button>
-        <button onclick="pressPin('0')" class="h-14 rounded-xl bg-slate-800 text-white text-xl font-semibold hover:bg-slate-700 active:scale-95 transition">0</button>
-        <button onclick="clearPin()" class="h-14 rounded-xl bg-slate-800 text-rose-400 flex items-center justify-center hover:bg-slate-700 active:scale-95 transition"><i data-lucide="delete" class="w-6 h-6"></i></button>
-      </div>
-      <p class="text-xs text-slate-500">Security Access Locked</p>
-    </div>
-  </div>
-
   <div class="flex-1 flex flex-col h-full overflow-hidden">
     <!-- Header -->
     <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700/60 p-4 sticky top-0 z-30 flex items-center justify-between no-print">
@@ -164,9 +130,6 @@
         </button>
         <button onclick="exportBackupData()" class="p-2 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-300" title="Export Backup Data CSV">
           <i data-lucide="download" class="w-5 h-5 text-emerald-400"></i>
-        </button>
-        <button onclick="lockApp()" class="p-2 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-300" title="Lock App">
-          <i data-lucide="lock" class="w-5 h-5"></i>
         </button>
       </div>
     </header>
@@ -617,29 +580,10 @@
       <div class="p-4 overflow-y-auto space-y-5 text-xs">
         <!-- Application Settings -->
         <div class="space-y-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
-          <h4 class="font-semibold text-indigo-400 uppercase text-[11px] tracking-wider">Application & Security</h4>
+          <h4 class="font-semibold text-indigo-400 uppercase text-[11px] tracking-wider">Application Settings</h4>
           <div>
             <label class="block text-slate-400 mb-1">Application Name / Title</label>
             <input type="text" id="settingAppName" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
-            <div>
-              <label class="block text-slate-400 mb-1">Admin App Security PIN</label>
-              <div class="relative">
-                <input type="password" id="settingAdminPin" maxlength="4" placeholder="4-digit PIN" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 pr-9 text-white font-mono" />
-                <button type="button" onclick="togglePinVisibility()" class="absolute right-2.5 top-2.5 text-slate-400 hover:text-white">
-                  <i data-lucide="eye" id="pinEyeIcon" class="w-4 h-4"></i>
-                </button>
-              </div>
-            </div>
-            <div>
-              <label class="block text-slate-400 mb-1">Biometric Authentication</label>
-              <select id="settingBiometricEnabled" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
-                <option value="true">Enabled (Mobile Biometric)</option>
-                <option value="false">Disabled (PIN Only)</option>
-              </select>
-            </div>
           </div>
 
           <!-- GOOGLE DRIVE BACKUP SETTINGS -->
@@ -648,7 +592,7 @@
               <span class="font-semibold text-white">Google Drive Integration</span>
               <label class="flex items-center space-x-1 cursor-pointer">
                 <input type="checkbox" id="settingAutoDriveBackup" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" />
-                <span class="text-slate-300 text-[11px]">Auto Daily Backup</span>
+                <span class="text-slate-300 text-[11px]">Auto Daily Sync & Backup</span>
               </label>
             </div>
                         
@@ -752,8 +696,8 @@
             <input type="tel" id="mobile" required placeholder="98XXXXXXXX" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Date of Birth *</label>
-            <input type="date" id="dob" required onchange="calculateAgeDisplay()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
+            <label class="block text-slate-400 mb-1">Date of Birth (DD/MM/YYYY) *</label>
+            <input type="text" id="dob" required placeholder="DD/MM/YYYY" onblur="calculateAgeDisplay()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
           </div>
         </div>
 
@@ -793,8 +737,8 @@
             </select>
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Start Date *</label>
-            <input type="date" id="startDate" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
+            <label class="block text-slate-400 mb-1">Start Date (DD/MM/YYYY) *</label>
+            <input type="text" id="startDate" required placeholder="DD/MM/YYYY" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
           </div>
         </div>
 
@@ -929,8 +873,8 @@
             <input type="number" id="ledgerAmount" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-bold text-sm" placeholder="0.00" />
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Transaction Date *</label>
-            <input type="date" id="ledgerDate" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
+            <label class="block text-slate-400 mb-1">Transaction Date (DD/MM/YYYY) *</label>
+            <input type="text" id="ledgerDate" required placeholder="DD/MM/YYYY" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
           </div>
         </div>
 
@@ -984,9 +928,34 @@
       });
     }
 
-    /* --- DATE FORMATTERS (DD/MM/YYYY) --- */
+    /* --- DATE HELPER UTILITIES (STRICT DD/MM/YYYY EVERYWHERE) --- */
+    function getTodayDDMMYYYY() {
+      const d = new Date();
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    function parseDDMMYYYYToDate(dateStr) {
+      if (!dateStr) return new Date();
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+      } else if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+          return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+      }
+      return new Date();
+    }
+
     function formatDateToDDMMYYYY(dateStr) {
       if (!dateStr) return '';
+      if (dateStr.includes('/')) return dateStr;
       const parts = dateStr.split('-');
       if (parts.length === 3) {
         return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -1004,10 +973,6 @@
     }
 
     /* --- APPLICATION STATE --- */
-    let activePin = "1234";
-    let biometricEnabled = true;
-    let enteredPin = "";
-
     let appConfig = JSON.parse(localStorage.getItem('smaartus_app_config')) || {
       appName: "Smaartus Operations",
       googleClientId: "480949134416-a4ccntu2pgmvp78pdvgmndns6sf3doqf.apps.googleusercontent.com",
@@ -1020,7 +985,6 @@
     let driveAccessToken = localStorage.getItem('smaartus_gdrive_token') || "";
     let tokenClient = null;
 
-    // SINGLE UNIFIED COURSE MASTER ARRAY WITH TOTAL LEVEL COUNT
     let courseMaster = JSON.parse(localStorage.getItem('smaartus_course_master')) || [
       { name: 'Abacus', baseMonth: 3, totalLevels: 8, regFee: 1500, baseFee: 3000, extFee: 1000 },
       { name: 'Vedic Maths', baseMonth: 3, totalLevels: 4, regFee: 1500, baseFee: 4000, extFee: 1000 },
@@ -1046,11 +1010,8 @@
 
     /* --- INITIALIZATION --- */
     window.onload = function() {
-      // PERSISTENT AUTH CHECK
-      const isAuthenticated = localStorage.getItem('smaartus_auth_session') === 'active';
-      if (isAuthenticated) {
-        document.getElementById('pinLockScreen').classList.add('hidden');
-      }
+      // Set session logged in permanently once opened
+      localStorage.setItem('smaartus_auth_session', 'active');
 
       applyAppConfigUI();
       populateCourseSelects();
@@ -1060,12 +1021,18 @@
       if (driveAccessToken) {
         connectGoogleDriveOAuth(false);
       }
+
+      // Auto Daily Sync Trigger (WhatsApp-Style Cloud Backup & Restore)
+      setInterval(() => {
+        if (appConfig.autoDriveBackup) {
+          syncDataToGoogleDrive(false);
+        }
+      }, 60000 * 30); // Silent sync every 30 minutes
     };
 
     function applyAppConfigUI() {
       const name = appConfig.appName || "Smaartus Operations";
       document.getElementById('headerAppName').innerText = name;
-      document.getElementById('lockScreenAppName').innerText = name;
       document.getElementById('appDocumentTitle').innerText = name + " PWA";
 
       const gStatus = document.getElementById('googleAccountText');
@@ -1120,20 +1087,7 @@
       document.documentElement.classList.toggle('dark');
     }
 
-    function togglePinVisibility() {
-      const pinInput = document.getElementById('settingAdminPin');
-      const eyeIcon = document.getElementById('pinEyeIcon');
-      if (pinInput.type === 'password') {
-        pinInput.type = 'text';
-        eyeIcon.setAttribute('data-lucide', 'eye-off');
-      } else {
-        pinInput.type = 'password';
-        eyeIcon.setAttribute('data-lucide', 'eye');
-      }
-      lucide.createIcons();
-    }
-
-    /* --- GOOGLE DRIVE DIRECT CLOUD STORAGE ENGINE --- */
+    /* --- GOOGLE DRIVE AUTOMATIC BACKUP & SYNC ENGINE --- */
     function initGoogleDriveOAuth() {
       if (!appConfig.googleClientId) {
         showToast("OAuth Client ID is missing.");
@@ -1141,7 +1095,7 @@
       }
 
       if (typeof google === 'undefined' || !google.accounts) {
-        showToast("Google Identity Services library loading... try again.");
+        showToast("Google Identity Services loading... try again.");
         return false;
       }
 
@@ -1220,7 +1174,7 @@
           });
 
           if (updateRes.ok) {
-            appConfig.lastBackupDate = new Date().toISOString().slice(0, 10);
+            appConfig.lastBackupDate = getTodayDDMMYYYY();
             if (isManual) showToast("Cloud storage updated on Google Drive!");
           } else if (updateRes.status === 401) {
             connectGoogleDriveOAuth(false);
@@ -1238,7 +1192,7 @@
           });
 
           if (createRes.ok) {
-            appConfig.lastBackupDate = new Date().toISOString().slice(0, 10);
+            appConfig.lastBackupDate = getTodayDDMMYYYY();
             if (isManual) showToast("New backup created on Google Drive!");
           }
         }
@@ -1293,7 +1247,7 @@
           renderStudents();
           renderLedger();
           generateAllReports();
-          showToast("Data restored directly from Google Drive!");
+          showToast("Data synced & restored from Google Drive!");
         } else {
           applyAppConfigUI();
           showToast("No existing cloud backup file found on Google Drive.");
@@ -1306,8 +1260,6 @@
     /* --- ADMIN SETTINGS ENGINE --- */
     function openAdminSettingsModal() {
       document.getElementById('settingAppName').value = appConfig.appName || "Smaartus Operations";
-      document.getElementById('settingAdminPin').value = activePin;
-      document.getElementById('settingBiometricEnabled').value = biometricEnabled.toString();
       document.getElementById('settingAutoDriveBackup').checked = appConfig.autoDriveBackup || false;
       document.getElementById('settingIncomeCategories').value = categoriesConfig.income.join(', ');
       document.getElementById('settingExpenseCategories').value = categoriesConfig.expense.join(', ');
@@ -1411,13 +1363,9 @@
     function saveAdminSettings() {
       try {
         const appNameInput = document.getElementById('settingAppName');
-        const adminPinInput = document.getElementById('settingAdminPin');
-        const biometricSelect = document.getElementById('settingBiometricEnabled');
         const autoBackupCheckbox = document.getElementById('settingAutoDriveBackup');
 
         if (appNameInput) appConfig.appName = appNameInput.value.trim() || "Smaartus Operations";
-        if (adminPinInput && adminPinInput.value.trim()) activePin = adminPinInput.value.trim();
-        if (biometricSelect) biometricEnabled = biometricSelect.value === 'true';
         if (autoBackupCheckbox) appConfig.autoDriveBackup = autoBackupCheckbox.checked;
 
         // Save Course Master
@@ -1472,60 +1420,10 @@
       }
     }
 
-    /* --- PIN LOCK --- */
-    function pressPin(num) {
-      if (enteredPin.length < 4) {
-        enteredPin += num;
-        updatePinDots();
-        if (enteredPin.length === 4) setTimeout(verifyPin, 150);
-      }
-    }
-
-    function clearPin() {
-      enteredPin = "";
-      updatePinDots();
-    }
-
-    function updatePinDots() {
-      const dots = document.getElementById('pinDots').children;
-      for (let i = 0; i < 4; i++) {
-        if (i < enteredPin.length) dots[i].classList.add('bg-indigo-500', 'border-indigo-500');
-        else dots[i].classList.remove('bg-indigo-500', 'border-indigo-500');
-      }
-    }
-
-    function verifyPin() {
-      if (enteredPin === activePin) {
-        localStorage.setItem('smaartus_auth_session', 'active');
-        document.getElementById('pinLockScreen').classList.add('hidden');
-        showToast("Unlocked successfully!");
-        clearPin();
-      } else {
-        showToast("Incorrect Security PIN!");
-        clearPin();
-      }
-    }
-
-    async function biometricUnlock() {
-      if (!biometricEnabled) {
-        showToast("Biometrics disabled in Settings.");
-        return;
-      }
-      localStorage.setItem('smaartus_auth_session', 'active');
-      document.getElementById('pinLockScreen').classList.add('hidden');
-      showToast("Biometric verification success!");
-    }
-
-    function lockApp() {
-      localStorage.removeItem('smaartus_auth_session');
-      document.getElementById('pinLockScreen').classList.remove('hidden');
-      clearPin();
-    }
-
     /* --- DATES & CALCULATIONS --- */
     function calculateCompletedMonths(startDateStr) {
       if (!startDateStr) return 1;
-      const start = new Date(startDateStr);
+      const start = parseDDMMYYYYToDate(startDateStr);
       const now = new Date();
       let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
       if (now.getDate() < start.getDate()) months--;
@@ -1534,7 +1432,7 @@
 
     function calculateAge(dobStr) {
       if (!dobStr) return "";
-      const dob = new Date(dobStr);
+      const dob = parseDDMMYYYYToDate(dobStr);
       const diff = new Date() - dob;
       return Math.abs(new Date(diff).getUTCFullYear() - 1970);
     }
@@ -1585,7 +1483,6 @@
 
         const isGraduated = currentLevelNum > (config.totalLevels || 8);
         
-        // Check for specific student fee waiver in ledger expenses
         const hasWaivedFee = ledger.some(t => t.type === 'Expense' && t.category === 'Fee Waiver / Adjustment' && t.studentId === s.id);
         const isExtension = !isGraduated && !hasWaivedFee && (completedMonths > config.baseMonth);
         const overdueMonths = isExtension ? completedMonths - config.baseMonth : 0;
@@ -1692,6 +1589,7 @@
     function openStudentModal() {
       document.getElementById('studentForm').reset();
       document.getElementById('studentId').value = '';
+      document.getElementById('startDate').value = getTodayDDMMYYYY();
       document.getElementById('studentModalTitle').innerText = 'Add New Student';
 
       const cArea = document.getElementById('studentCustomFieldsFormArea');
@@ -1735,12 +1633,12 @@
         middleName: document.getElementById('middleName').value,
         surname: document.getElementById('surname').value,
         mobile: document.getElementById('mobile').value,
-        dob: document.getElementById('dob').value,
+        dob: formatDateToDDMMYYYY(document.getElementById('dob').value),
         school: document.getElementById('school').value,
         branch: document.getElementById('branch').value,
         course: document.getElementById('course').value,
         level: document.getElementById('levelSelect').value,
-        startDate: document.getElementById('startDate').value,
+        startDate: formatDateToDDMMYYYY(document.getElementById('startDate').value),
         address: document.getElementById('address').value,
         customData: customDataObj
       };
@@ -1765,7 +1663,7 @@
       document.getElementById('middleName').value = s.middleName || '';
       document.getElementById('surname').value = s.surname;
       document.getElementById('mobile').value = s.mobile;
-      document.getElementById('dob').value = s.dob;
+      document.getElementById('dob').value = formatDateToDDMMYYYY(s.dob);
       document.getElementById('school').value = s.school || '';
       document.getElementById('branch').value = s.branch;
       document.getElementById('course').value = s.course;
@@ -1773,7 +1671,7 @@
       updateModalLevelOptions();
       document.getElementById('levelSelect').value = s.level;
 
-      document.getElementById('startDate').value = s.startDate;
+      document.getElementById('startDate').value = formatDateToDDMMYYYY(s.startDate);
       document.getElementById('address').value = s.address || '';
       calculateAgeDisplay();
 
@@ -1833,7 +1731,7 @@
 
       const nextLevel = document.getElementById('promoteNextLevelSelect').value;
       const feeAmount = parseFloat(document.getElementById('promoteFee').value) || 3000;
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDDMMYYYY();
 
       s.level = nextLevel;
       s.startDate = today;
@@ -1950,7 +1848,7 @@
 
       if (!editId) {
         document.getElementById('ledgerAmount').value = '';
-        document.getElementById('ledgerDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('ledgerDate').value = getTodayDDMMYYYY();
         document.getElementById('ledgerNotes').value = '';
       }
 
@@ -2015,7 +1913,7 @@
       openLedgerModal(item.type, id);
       document.getElementById('ledgerCategory').value = item.category;
       document.getElementById('ledgerAmount').value = item.amount;
-      document.getElementById('ledgerDate').value = item.date;
+      document.getElementById('ledgerDate').value = formatDateToDDMMYYYY(item.date);
       document.getElementById('ledgerNotes').value = item.notes || '';
     }
 
@@ -2059,7 +1957,7 @@
 
       const itemData = {
         id: txId || ('TRX-' + Date.now()),
-        date: document.getElementById('ledgerDate').value,
+        date: formatDateToDDMMYYYY(document.getElementById('ledgerDate').value),
         type: type,
         category: category,
         amount: parseFloat(document.getElementById('ledgerAmount').value) || 0,
@@ -2105,10 +2003,7 @@
       const specificMonthVal = document.getElementById('reportSpecificMonth').value;
 
       const now = new Date();
-      const currentMonthStr = now.toISOString().slice(0, 7);
-      
-      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastMonthStr = lastMonthDate.toISOString().slice(0, 7);
+      const currentMonthStr = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
 
       const filteredStds = students.filter(s => {
         const matchB = branch === 'All' || s.branch === branch;
@@ -2121,12 +2016,11 @@
       let pendingExtensionSum = 0;
 
       ledger.forEach(t => {
-        const tMonth = (t.date || '').slice(0, 7);
+        const dObj = parseDDMMYYYYToDate(t.date);
+        const tMonthStr = `${String(dObj.getMonth() + 1).padStart(2, '0')}/${dObj.getFullYear()}`;
         let matchesPeriod = true;
 
-        if (period === 'CurrentMonth') matchesPeriod = (tMonth === currentMonthStr);
-        else if (period === 'LastMonth') matchesPeriod = (tMonth === lastMonthStr);
-        else if (period === 'SpecificMonth') matchesPeriod = (tMonth === specificMonthVal);
+        if (period === 'CurrentMonth') matchesPeriod = (tMonthStr === currentMonthStr);
 
         if (!matchesPeriod) return;
 
@@ -2331,14 +2225,14 @@
 
     /* --- NOTIFICATIONS ENGINE --- */
     function checkAllNotifications(manualClick) {
-      const todayYYYYMMDD = new Date().toISOString().slice(0, 10);
-      const todayMMDD = todayYYYYMMDD.slice(5, 10);
+      const todayDDMMYYYY = getTodayDDMMYYYY();
+      const todayMMDD = todayDDMMYYYY.slice(0, 5);
       const feedDiv = document.getElementById('notifFeedList');
       feedDiv.innerHTML = '';
 
       let totalAlertsCount = 0;
 
-      const bdayStudents = students.filter(s => s.dob && s.dob.slice(5, 10) === todayMMDD);
+      const bdayStudents = students.filter(s => s.dob && s.dob.slice(0, 5) === todayMMDD);
       bdayStudents.forEach(s => {
         totalAlertsCount++;
         feedDiv.innerHTML += `
@@ -2395,7 +2289,7 @@
         }
       });
 
-      const isAlreadyReadToday = readNotifsState.lastReadDate === todayYYYYMMDD;
+      const isAlreadyReadToday = readNotifsState.lastReadDate === todayDDMMYYYY;
       const notifBadge = document.getElementById('notifBadge');
 
       if (totalAlertsCount > 0 && !isAlreadyReadToday) notifBadge.classList.remove('hidden');
@@ -2410,8 +2304,8 @@
     function openNotificationModal() { checkAllNotifications(true); }
 
     function markAllNotifsAsRead() {
-      const todayYYYYMMDD = new Date().toISOString().slice(0, 10);
-      readNotifsState.lastReadDate = todayYYYYMMDD;
+      const todayDDMMYYYY = getTodayDDMMYYYY();
+      readNotifsState.lastReadDate = todayDDMMYYYY;
       document.getElementById('notifBadge').classList.add('hidden');
       closeNotificationModal();
       showToast("Notifications marked as read.");
@@ -2423,12 +2317,12 @@
     function exportBackupData() {
       let csvContent = "data:text/csv;charset=utf-8,ID,First Name,Surname,Mobile,DOB,Branch,Course,Level,Start Date\n";
       students.forEach(s => {
-        csvContent += `${s.id},${s.firstName},${s.surname},${s.mobile},${s.dob},${s.branch},${s.course},${s.level},${formatDateToDDMMYYYY(s.startDate)}\n`;
+        csvContent += `${s.id},${s.firstName},${s.surname},${s.mobile},${formatDateToDDMMYYYY(s.dob)},${s.branch},${s.course},${s.level},${formatDateToDDMMYYYY(s.startDate)}\n`;
       });
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `Smaartus_Backup_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute("download", `Smaartus_Backup_${getTodayDDMMYYYY().replace(/\//g, '-')}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
