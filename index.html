@@ -696,8 +696,8 @@
             <input type="tel" id="mobile" required placeholder="98XXXXXXXX" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Date of Birth (DD/MM/YYYY) *</label>
-            <input type="text" id="dob" required placeholder="DD/MM/YYYY" onblur="calculateAgeDisplay()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
+            <label class="block text-slate-400 mb-1">Date of Birth *</label>
+            <input type="date" id="dob" required onchange="calculateAgeDisplay()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
           </div>
         </div>
 
@@ -737,8 +737,8 @@
             </select>
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Start Date (DD/MM/YYYY) *</label>
-            <input type="text" id="startDate" required placeholder="DD/MM/YYYY" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
+            <label class="block text-slate-400 mb-1">Start Date *</label>
+            <input type="date" id="startDate" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
           </div>
         </div>
 
@@ -873,8 +873,8 @@
             <input type="number" id="ledgerAmount" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-bold text-sm" placeholder="0.00" />
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Transaction Date (DD/MM/YYYY) *</label>
-            <input type="text" id="ledgerDate" required placeholder="DD/MM/YYYY" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
+            <label class="block text-slate-400 mb-1">Transaction Date *</label>
+            <input type="date" id="ledgerDate" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
           </div>
         </div>
 
@@ -928,29 +928,9 @@
       });
     }
 
-    /* --- DATE HELPER UTILITIES (STRICT DD/MM/YYYY EVERYWHERE) --- */
-    function getTodayDDMMYYYY() {
-      const d = new Date();
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}/${month}/${year}`;
-    }
-
-    function parseDDMMYYYYToDate(dateStr) {
-      if (!dateStr) return new Date();
-      if (dateStr.includes('/')) {
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
-          return new Date(parts[2], parts[1] - 1, parts[0]);
-        }
-      } else if (dateStr.includes('-')) {
-        const parts = dateStr.split('-');
-        if (parts.length === 3) {
-          return new Date(parts[0], parts[1] - 1, parts[2]);
-        }
-      }
-      return new Date();
+    /* --- DATE FORMATTERS (DISPLAY AS DD/MM/YYYY EVERYWHERE) --- */
+    function getTodayYYYYMMDD() {
+      return new Date().toISOString().slice(0, 10);
     }
 
     function formatDateToDDMMYYYY(dateStr) {
@@ -1010,24 +990,25 @@
 
     /* --- INITIALIZATION --- */
     window.onload = function() {
-      // Set session logged in permanently once opened
+      // Ensure local session remains permanently authenticated
       localStorage.setItem('smaartus_auth_session', 'active');
 
       applyAppConfigUI();
       populateCourseSelects();
       lucide.createIcons();
-      document.getElementById('attendanceDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('attendanceDate').value = getTodayYYYYMMDD();
 
+      // Auto-restore cached Google OAuth Session without asking again
       if (driveAccessToken) {
         connectGoogleDriveOAuth(false);
       }
 
-      // Auto Daily Sync Trigger (WhatsApp-Style Cloud Backup & Restore)
+      // Silent Auto Daily Cloud Sync Interval
       setInterval(() => {
-        if (appConfig.autoDriveBackup) {
+        if (appConfig.autoDriveBackup && driveAccessToken) {
           syncDataToGoogleDrive(false);
         }
-      }, 60000 * 30); // Silent sync every 30 minutes
+      }, 1000 * 60 * 30);
     };
 
     function applyAppConfigUI() {
@@ -1087,7 +1068,7 @@
       document.documentElement.classList.toggle('dark');
     }
 
-    /* --- GOOGLE DRIVE AUTOMATIC BACKUP & SYNC ENGINE --- */
+    /* --- PERSISTENT GOOGLE DRIVE DIRECT CLOUD BACKUP ENGINE --- */
     function initGoogleDriveOAuth() {
       if (!appConfig.googleClientId) {
         showToast("OAuth Client ID is missing.");
@@ -1131,7 +1112,8 @@
 
     function connectGoogleDriveOAuth(interactive = true) {
       if (initGoogleDriveOAuth()) {
-        tokenClient.requestAccessToken({ prompt: interactive ? 'select_account' : '' });
+        // Request token silently without prompt if token exists
+        tokenClient.requestAccessToken({ prompt: interactive ? 'select_account' : 'none' });
       }
     }
 
@@ -1174,7 +1156,7 @@
           });
 
           if (updateRes.ok) {
-            appConfig.lastBackupDate = getTodayDDMMYYYY();
+            appConfig.lastBackupDate = formatDateToDDMMYYYY(getTodayYYYYMMDD());
             if (isManual) showToast("Cloud storage updated on Google Drive!");
           } else if (updateRes.status === 401) {
             connectGoogleDriveOAuth(false);
@@ -1192,7 +1174,7 @@
           });
 
           if (createRes.ok) {
-            appConfig.lastBackupDate = getTodayDDMMYYYY();
+            appConfig.lastBackupDate = formatDateToDDMMYYYY(getTodayYYYYMMDD());
             if (isManual) showToast("New backup created on Google Drive!");
           }
         }
@@ -1423,7 +1405,7 @@
     /* --- DATES & CALCULATIONS --- */
     function calculateCompletedMonths(startDateStr) {
       if (!startDateStr) return 1;
-      const start = parseDDMMYYYYToDate(startDateStr);
+      const start = new Date(startDateStr);
       const now = new Date();
       let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
       if (now.getDate() < start.getDate()) months--;
@@ -1432,7 +1414,7 @@
 
     function calculateAge(dobStr) {
       if (!dobStr) return "";
-      const dob = parseDDMMYYYYToDate(dobStr);
+      const dob = new Date(dobStr);
       const diff = new Date() - dob;
       return Math.abs(new Date(diff).getUTCFullYear() - 1970);
     }
@@ -1589,7 +1571,7 @@
     function openStudentModal() {
       document.getElementById('studentForm').reset();
       document.getElementById('studentId').value = '';
-      document.getElementById('startDate').value = getTodayDDMMYYYY();
+      document.getElementById('startDate').value = getTodayYYYYMMDD();
       document.getElementById('studentModalTitle').innerText = 'Add New Student';
 
       const cArea = document.getElementById('studentCustomFieldsFormArea');
@@ -1633,12 +1615,12 @@
         middleName: document.getElementById('middleName').value,
         surname: document.getElementById('surname').value,
         mobile: document.getElementById('mobile').value,
-        dob: formatDateToDDMMYYYY(document.getElementById('dob').value),
+        dob: document.getElementById('dob').value,
         school: document.getElementById('school').value,
         branch: document.getElementById('branch').value,
         course: document.getElementById('course').value,
         level: document.getElementById('levelSelect').value,
-        startDate: formatDateToDDMMYYYY(document.getElementById('startDate').value),
+        startDate: document.getElementById('startDate').value,
         address: document.getElementById('address').value,
         customData: customDataObj
       };
@@ -1663,7 +1645,7 @@
       document.getElementById('middleName').value = s.middleName || '';
       document.getElementById('surname').value = s.surname;
       document.getElementById('mobile').value = s.mobile;
-      document.getElementById('dob').value = formatDateToDDMMYYYY(s.dob);
+      document.getElementById('dob').value = s.dob;
       document.getElementById('school').value = s.school || '';
       document.getElementById('branch').value = s.branch;
       document.getElementById('course').value = s.course;
@@ -1671,7 +1653,7 @@
       updateModalLevelOptions();
       document.getElementById('levelSelect').value = s.level;
 
-      document.getElementById('startDate').value = formatDateToDDMMYYYY(s.startDate);
+      document.getElementById('startDate').value = s.startDate;
       document.getElementById('address').value = s.address || '';
       calculateAgeDisplay();
 
@@ -1731,7 +1713,7 @@
 
       const nextLevel = document.getElementById('promoteNextLevelSelect').value;
       const feeAmount = parseFloat(document.getElementById('promoteFee').value) || 3000;
-      const today = getTodayDDMMYYYY();
+      const today = getTodayYYYYMMDD();
 
       s.level = nextLevel;
       s.startDate = today;
@@ -1848,7 +1830,7 @@
 
       if (!editId) {
         document.getElementById('ledgerAmount').value = '';
-        document.getElementById('ledgerDate').value = getTodayDDMMYYYY();
+        document.getElementById('ledgerDate').value = getTodayYYYYMMDD();
         document.getElementById('ledgerNotes').value = '';
       }
 
@@ -1913,7 +1895,7 @@
       openLedgerModal(item.type, id);
       document.getElementById('ledgerCategory').value = item.category;
       document.getElementById('ledgerAmount').value = item.amount;
-      document.getElementById('ledgerDate').value = formatDateToDDMMYYYY(item.date);
+      document.getElementById('ledgerDate').value = item.date;
       document.getElementById('ledgerNotes').value = item.notes || '';
     }
 
@@ -1957,7 +1939,7 @@
 
       const itemData = {
         id: txId || ('TRX-' + Date.now()),
-        date: formatDateToDDMMYYYY(document.getElementById('ledgerDate').value),
+        date: document.getElementById('ledgerDate').value,
         type: type,
         category: category,
         amount: parseFloat(document.getElementById('ledgerAmount').value) || 0,
@@ -2003,7 +1985,10 @@
       const specificMonthVal = document.getElementById('reportSpecificMonth').value;
 
       const now = new Date();
-      const currentMonthStr = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+      const currentMonthStr = now.toISOString().slice(0, 7);
+      
+      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthStr = lastMonthDate.toISOString().slice(0, 7);
 
       const filteredStds = students.filter(s => {
         const matchB = branch === 'All' || s.branch === branch;
@@ -2016,11 +2001,12 @@
       let pendingExtensionSum = 0;
 
       ledger.forEach(t => {
-        const dObj = parseDDMMYYYYToDate(t.date);
-        const tMonthStr = `${String(dObj.getMonth() + 1).padStart(2, '0')}/${dObj.getFullYear()}`;
+        const tMonth = (t.date || '').slice(0, 7);
         let matchesPeriod = true;
 
-        if (period === 'CurrentMonth') matchesPeriod = (tMonthStr === currentMonthStr);
+        if (period === 'CurrentMonth') matchesPeriod = (tMonth === currentMonthStr);
+        else if (period === 'LastMonth') matchesPeriod = (tMonth === lastMonthStr);
+        else if (period === 'SpecificMonth') matchesPeriod = (tMonth === specificMonthVal);
 
         if (!matchesPeriod) return;
 
@@ -2225,14 +2211,14 @@
 
     /* --- NOTIFICATIONS ENGINE --- */
     function checkAllNotifications(manualClick) {
-      const todayDDMMYYYY = getTodayDDMMYYYY();
-      const todayMMDD = todayDDMMYYYY.slice(0, 5);
+      const todayYYYYMMDD = getTodayYYYYMMDD();
+      const todayMMDD = todayYYYYMMDD.slice(5, 10);
       const feedDiv = document.getElementById('notifFeedList');
       feedDiv.innerHTML = '';
 
       let totalAlertsCount = 0;
 
-      const bdayStudents = students.filter(s => s.dob && s.dob.slice(0, 5) === todayMMDD);
+      const bdayStudents = students.filter(s => s.dob && s.dob.slice(5, 10) === todayMMDD);
       bdayStudents.forEach(s => {
         totalAlertsCount++;
         feedDiv.innerHTML += `
@@ -2289,7 +2275,7 @@
         }
       });
 
-      const isAlreadyReadToday = readNotifsState.lastReadDate === todayDDMMYYYY;
+      const isAlreadyReadToday = readNotifsState.lastReadDate === todayYYYYMMDD;
       const notifBadge = document.getElementById('notifBadge');
 
       if (totalAlertsCount > 0 && !isAlreadyReadToday) notifBadge.classList.remove('hidden');
@@ -2304,8 +2290,8 @@
     function openNotificationModal() { checkAllNotifications(true); }
 
     function markAllNotifsAsRead() {
-      const todayDDMMYYYY = getTodayDDMMYYYY();
-      readNotifsState.lastReadDate = todayDDMMYYYY;
+      const todayYYYYMMDD = getTodayYYYYMMDD();
+      readNotifsState.lastReadDate = todayYYYYMMDD;
       document.getElementById('notifBadge').classList.add('hidden');
       closeNotificationModal();
       showToast("Notifications marked as read.");
@@ -2322,7 +2308,7 @@
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `Smaartus_Backup_${getTodayDDMMYYYY().replace(/\//g, '-')}.csv`);
+      link.setAttribute("download", `Smaartus_Backup_${getTodayYYYYMMDD()}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
