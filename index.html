@@ -586,22 +586,36 @@
             <input type="text" id="settingAppName" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
           </div>
 
-          <!-- GOOGLE DRIVE AUTOMATIC DAILY BACKUP SETTINGS -->
+          <!-- GOOGLE DRIVE AUTOMATIC & MANUAL BACKUP SETTINGS -->
           <div class="pt-2 border-t border-slate-800 flex flex-col space-y-2">
             <div class="flex items-center justify-between">
-              <span class="font-semibold text-white">Google Drive Daily Backup</span>
+              <span class="font-semibold text-white">Google Drive Backup</span>
               <label class="flex items-center space-x-1 cursor-pointer">
                 <input type="checkbox" id="settingAutoDriveBackup" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" />
                 <span class="text-slate-300 text-[11px]">Auto Daily Backup</span>
               </label>
             </div>
                         
-            <div id="googleAccountStatus" class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800 mt-1 gap-2">
-              <span id="googleAccountText" class="text-slate-300 text-xs font-mono truncate">Not Connected</span>
-              <button type="button" onclick="connectGoogleDriveOAuth(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 shrink-0">
-                <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
-                <span id="gDriveBtnLabel">Connect Drive</span>
-              </button>
+            <div id="googleAccountStatus" class="flex flex-col bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex items-center justify-between">
+                <span id="googleAccountText" class="text-slate-300 text-xs font-mono truncate">Not Connected</span>
+                <button type="button" onclick="connectGoogleDriveOAuth(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 shrink-0">
+                  <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
+                  <span id="gDriveBtnLabel">Connect Drive</span>
+                </button>
+              </div>
+
+              <!-- Last Backup Timestamp & Manual Trigger -->
+              <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px]">
+                <div>
+                  <span class="text-slate-400 block">Last Backup Done:</span>
+                  <span id="lastBackupDisplay" class="text-emerald-400 font-semibold font-mono">Never</span>
+                </div>
+                <button type="button" onclick="manualBackupNow()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
+                  <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
+                  <span>Backup Now</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -952,7 +966,8 @@
       googleClientId: "480949134416-a4ccntu2pgmvp78pdvgmndns6sf3doqf.apps.googleusercontent.com",
       googleAccount: "",
       autoDriveBackup: true,
-      lastBackupDate: ""
+      lastBackupDate: "",
+      lastBackupTimestamp: ""
     };
     appConfig.googleClientId = "480949134416-a4ccntu2pgmvp78pdvgmndns6sf3doqf.apps.googleusercontent.com";
 
@@ -1027,6 +1042,12 @@
         gStatus.className = "text-slate-400 font-normal truncate";
         document.getElementById('gDriveBtnLabel').innerText = "Connect Drive";
       }
+
+      // Display Last Backup Timestamp
+      const lastBackupEl = document.getElementById('lastBackupDisplay');
+      if (lastBackupEl) {
+        lastBackupEl.innerText = appConfig.lastBackupTimestamp || appConfig.lastBackupDate || "Never";
+      }
     }
 
     function getCourseFees(courseName) {
@@ -1069,7 +1090,7 @@
       document.documentElement.classList.toggle('dark');
     }
 
-    /* --- AUTOMATIC DAILY GOOGLE DRIVE BACKUP ENGINE --- */
+    /* --- AUTOMATIC & MANUAL GOOGLE DRIVE BACKUP ENGINE --- */
     function initGoogleDriveOAuth() {
       if (!appConfig.googleClientId) return false;
       if (typeof google === 'undefined' || !google.accounts) return false;
@@ -1112,11 +1133,21 @@
       if (!appConfig.autoDriveBackup || !driveAccessToken) return;
 
       if (appConfig.lastBackupDate !== formatDateToDDMMYYYY(today)) {
-        await performDriveBackup();
+        await performDriveBackup(false);
       }
     }
 
-    async function performDriveBackup() {
+    async function manualBackupNow() {
+      if (!driveAccessToken) {
+        showToast("Please connect Google Drive first!");
+        connectGoogleDriveOAuth(true);
+        return;
+      }
+      showToast("Starting Google Drive backup...");
+      await performDriveBackup(true);
+    }
+
+    async function performDriveBackup(isManual = false) {
       const backupContent = {
         appConfig,
         courseMaster,
@@ -1159,10 +1190,22 @@
           });
         }
 
+        const now = new Date();
+        const formattedTimestamp = `${formatDateToDDMMYYYY(getTodayYYYYMMDD())}, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+
         appConfig.lastBackupDate = formatDateToDDMMYYYY(getTodayYYYYMMDD());
+        appConfig.lastBackupTimestamp = formattedTimestamp;
         saveLocalState();
+        applyAppConfigUI();
+
+        if (isManual) {
+          showToast(`Backup successful! (${formattedTimestamp})`);
+        }
       } catch (err) {
-        console.error("Auto backup error:", err);
+        console.error("Backup error:", err);
+        if (isManual) {
+          showToast("Backup failed: " + err.message);
+        }
       }
     }
 
@@ -1175,6 +1218,7 @@
 
       renderAdminCourseMasterRows();
       renderCustomFieldsMasterRows();
+      applyAppConfigUI();
       document.getElementById('adminSettingsModal').classList.remove('hidden');
     }
 
