@@ -104,29 +104,24 @@
       .no-print { display: none !important; }
     }
   </style>
-  <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyA0_G0nVBN159LR7AZlYrrS3nLV5t_7q0c",
-    authDomain: "pallavi-academy.firebaseapp.com",
-    projectId: "pallavi-academy",
-    storageBucket: "pallavi-academy.firebasestorage.app",
-    messagingSenderId: "148206432112",
-    appId: "1:148206432112:web:80030a8daa41fb5c35e9b5",
-    measurementId: "G-BRG9TD9H04"
-  };
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyA0_G0nVBN159LR7AZlYrrS3nLV5t_7q0c",
+      authDomain: "pallavi-academy.firebaseapp.com",
+      projectId: "pallavi-academy",
+      storageBucket: "pallavi-academy.firebasestorage.app",
+      messagingSenderId: "148206432112",
+      appId: "1:148206432112:web:80030a8daa41fb5c35e9b5",
+      measurementId: "G-BRG9TD9H04"
+    };
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+    // Initialize Firebase and define global db
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.firestore();
+  </script>
 </head>
 <body class="h-full flex flex-col antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-200">
 
@@ -2423,5 +2418,3 @@
   </script>
 </body>
 </html>
-
-
