@@ -104,6 +104,29 @@
       .no-print { display: none !important; }
     }
   </style>
+  <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyA0_G0nVBN159LR7AZlYrrS3nLV5t_7q0c",
+    authDomain: "pallavi-academy.firebaseapp.com",
+    projectId: "pallavi-academy",
+    storageBucket: "pallavi-academy.firebasestorage.app",
+    messagingSenderId: "148206432112",
+    appId: "1:148206432112:web:80030a8daa41fb5c35e9b5",
+    measurementId: "G-BRG9TD9H04"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
 </head>
 <body class="h-full flex flex-col antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-200">
 
@@ -567,6 +590,22 @@
   </div>
 
   <!-- ADMIN MASTER SETTINGS MODAL -->
+   <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px]">
+  <div>
+    <span class="text-slate-400 block">Last Backup Done:</span>
+    <span id="lastBackupDisplay" class="text-emerald-400 font-semibold font-mono">Never</span>
+  </div>
+  <div class="flex space-x-1">
+    <button type="button" onclick="restoreFromDriveNow()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
+      <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
+      <span>Restore / Sync</span>
+    </button>
+    <button type="button" onclick="manualBackupNow()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
+      <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
+      <span>Backup Now</span>
+    </button>
+  </div>
+</div>
   <div id="adminSettingsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 hidden">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
       <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800">
@@ -586,39 +625,44 @@
             <input type="text" id="settingAppName" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
           </div>
 
-          <!-- GOOGLE DRIVE AUTOMATIC & MANUAL BACKUP SETTINGS -->
+          <!-- GOOGLE DRIVE AUTOMATIC & MANUAL BACKUP SETTINGS -->           
           <div class="pt-2 border-t border-slate-800 flex flex-col space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="font-semibold text-white">Google Drive Backup</span>
-              <label class="flex items-center space-x-1 cursor-pointer">
-                <input type="checkbox" id="settingAutoDriveBackup" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" />
-                <span class="text-slate-300 text-[11px]">Auto Daily Backup</span>
-              </label>
-            </div>
-                        
-            <div id="googleAccountStatus" class="flex flex-col bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
-              <div class="flex items-center justify-between">
-                <span id="googleAccountText" class="text-slate-300 text-xs font-mono truncate">Not Connected</span>
-                <button type="button" onclick="connectGoogleDriveOAuth(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 shrink-0">
-                  <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
-                  <span id="gDriveBtnLabel">Connect Drive</span>
-                </button>
-              </div>
+  <div class="flex items-center justify-between">
+    <span class="font-semibold text-white">Google Drive Backup</span>
+    <label class="flex items-center space-x-1 cursor-pointer">
+      <input type="checkbox" id="settingAutoDriveBackup" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" />
+      <span class="text-slate-300 text-[11px]">Auto Daily Backup</span>
+    </label>
+  </div>
+              
+  <div id="googleAccountStatus" class="flex flex-col bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+    <div class="flex items-center justify-between">
+      <span id="googleAccountText" class="text-slate-300 text-xs font-mono truncate">Not Connected</span>
+      <button type="button" onclick="connectGoogleDriveOAuth(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 shrink-0">
+        <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
+        <span id="gDriveBtnLabel">Connect Drive</span>
+      </button>
+    </div>
 
-              <!-- Last Backup Timestamp & Manual Trigger -->
-              <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px]">
-                <div>
-                  <span class="text-slate-400 block">Last Backup Done:</span>
-                  <span id="lastBackupDisplay" class="text-emerald-400 font-semibold font-mono">Never</span>
-                </div>
-                <button type="button" onclick="manualBackupNow()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
-                  <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
-                  <span>Backup Now</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+    <!-- Last Backup Timestamp & Action Triggers -->
+    <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px]">
+      <div>
+        <span class="text-slate-400 block">Last Backup Done:</span>
+        <span id="lastBackupDisplay" class="text-emerald-400 font-semibold font-mono">Never</span>
+      </div>
+      <div class="flex space-x-1">
+        <button type="button" onclick="restoreFromDriveNow()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
+          <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
+          <span>Restore</span>
+        </button>
+        <button type="button" onclick="manualBackupNow()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
+          <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
+          <span>Backup</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
         <!-- Course & Fee Master -->
         <div class="space-y-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
@@ -1007,6 +1051,38 @@
       localStorage.setItem('smaartus_app_config', JSON.stringify(appConfig));
     }
 
+
+    /* --- REAL-TIME FIRESTORE SYNC LISTENERS --- */
+    function subscribeToRealtimeFirestore() {
+      // Stream Students collection changes automatically
+      db.collection("students").onSnapshot((snapshot) => {
+        if (!snapshot.empty) {
+          let updatedStudents = [];
+          snapshot.forEach((doc) => {
+            updatedStudents.push({ id: doc.id, ...doc.data() });
+          });
+          students = updatedStudents;
+          localStorage.setItem('smaartus_students_db', JSON.stringify(students));
+          renderStudents();
+          generateAllReports();
+        }
+      }, (error) => console.error("Students sync error:", error));
+
+      // Stream Ledger collection changes automatically
+      db.collection("ledger").onSnapshot((snapshot) => {
+        if (!snapshot.empty) {
+          let updatedLedger = [];
+          snapshot.forEach((doc) => {
+            updatedLedger.push({ id: doc.id, ...doc.data() });
+          });
+          ledger = updatedLedger;
+          localStorage.setItem('smaartus_ledger_db', JSON.stringify(ledger));
+          renderLedger();
+          generateAllReports();
+        }
+      }, (error) => console.error("Ledger sync error:", error));
+    }
+
     /* --- INITIALIZATION --- */
     window.onload = function() {
       localStorage.setItem('smaartus_auth_session', 'active');
@@ -1208,6 +1284,59 @@
         }
       }
     }
+    async function restoreFromDriveNow() {
+  if (!driveAccessToken) {
+    showToast("Please connect Google Drive first!");
+    connectGoogleDriveOAuth(true);
+    return;
+  }
+
+  showToast("Checking Google Drive for backup...");
+
+  try {
+    const fileName = 'Smaartus_Backup.json';
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${fileName}' and trashed=false`, {
+      headers: { 'Authorization': `Bearer ${driveAccessToken}` }
+    });
+    const searchData = await searchRes.json();
+    const existingFile = searchData.files && searchData.files[0];
+
+    if (!existingFile) {
+      showToast("No backup file found on Google Drive.");
+      return;
+    }
+
+    // Download file content from Google Drive
+    const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${existingFile.id}?alt=media`, {
+      headers: { 'Authorization': `Bearer ${driveAccessToken}` }
+    });
+    const backupData = await fileRes.json();
+
+    if (backupData) {
+      if (backupData.students) students = backupData.students;
+      if (backupData.ledger) ledger = backupData.ledger;
+      if (backupData.attendance) attendance = backupData.attendance;
+      if (backupData.courseMaster) courseMaster = backupData.courseMaster;
+      if (backupData.categoriesConfig) categoriesConfig = backupData.categoriesConfig;
+      if (backupData.customFields) customFields = backupData.customFields;
+      if (backupData.appConfig) {
+        appConfig = { ...appConfig, ...backupData.appConfig };
+      }
+
+      // Persist to local device memory & refresh UI
+      saveLocalState();
+      renderStudents();
+      renderLedger();
+      generateAllReports();
+      applyAppConfigUI();
+
+      showToast("Data restored successfully from Google Drive!");
+    }
+  } catch (err) {
+    console.error("Restore error:", err);
+    showToast("Failed to restore data from Drive.");
+  }
+}
 
     /* --- ADMIN SETTINGS ENGINE --- */
     function openAdminSettingsModal() {
@@ -1589,6 +1718,10 @@
       else students.push(newStudent);
 
       saveLocalState();
+      // Save directly to Cloud Firestore for real-time synchronization
+      db.collection("students").doc(newStudent.id).set(newStudent)
+        .then(() => showToast("Synced across all devices!"))
+        .catch((err) => console.error("Cloud write error:", err));
       closeStudentModal();
       renderStudents();
       checkAllNotifications(false);
