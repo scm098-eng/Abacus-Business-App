@@ -1073,6 +1073,12 @@
       }, (error) => console.error("Attendance sync error:", error));
     }
 
+    /* --- AUTHORIZED EMAILS WHITELIST --- */
+    const AUTHORIZED_EMAILS = [
+      "pallavib202@gmail.com",       // Replace with your primary email
+      "scm098@gmail.com"          // Add additional staff/admin emails here
+    ];
+
     /* --- AUTHENTICATION & INITIALIZATION --- */
     auth.onAuthStateChanged((user) => {
       const loginGate = document.getElementById('loginGateScreen');
@@ -1081,7 +1087,21 @@
       const userBadge = document.getElementById('userEmailBadge');
 
       if (user) {
-        // Authenticated Session
+        // Check if the signed-in user's email is in the allowed list
+        const userEmail = (user.email || '').toLowerCase();
+        const isAuthorized = AUTHORIZED_EMAILS.some(email => email.toLowerCase() === userEmail);
+
+        if (!isAuthorized) {
+          // Reject access and log out unauthorized user
+          auth.signOut();
+          loginGate.classList.remove('hidden');
+          mainApp.classList.add('hidden');
+          statusText.innerText = `Access Denied (${userEmail}). You are not authorized to access this portal.`;
+          statusText.className = "text-xs text-rose-400 font-semibold";
+          return;
+        }
+
+        // Authenticated & Authorized Session
         loginGate.classList.add('hidden');
         mainApp.classList.remove('hidden');
         if (userBadge) userBadge.innerText = user.email || "Authenticated Admin";
@@ -1103,6 +1123,7 @@
         loginGate.classList.remove('hidden');
         mainApp.classList.add('hidden');
         statusText.innerText = "Please sign in with Google to access student records.";
+        statusText.className = "text-xs text-slate-500";
       }
     });
 
