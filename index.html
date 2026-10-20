@@ -37,8 +37,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Google OAuth Client Library -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-
+  
   <style>
     body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
     
@@ -620,45 +619,25 @@
             <input type="text" id="settingAppName" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
           </div>
 
-          <!-- GOOGLE DRIVE AUTOMATIC & MANUAL BACKUP SETTINGS -->           
+          <!-- <!-- GOOGLE SIGN-IN ACCOUNT STATUS -->           
           <div class="pt-2 border-t border-slate-800 flex flex-col space-y-2">
-  <div class="flex items-center justify-between">
-    <span class="font-semibold text-white">Google Drive Backup</span>
-    <label class="flex items-center space-x-1 cursor-pointer">
-      <input type="checkbox" id="settingAutoDriveBackup" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" />
-      <span class="text-slate-300 text-[11px]">Auto Daily Backup</span>
-    </label>
-  </div>
-              
-  <div id="googleAccountStatus" class="flex flex-col bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
-    <div class="flex items-center justify-between">
-      <span id="googleAccountText" class="text-slate-300 text-xs font-mono truncate">Not Connected</span>
-      <button type="button" onclick="connectGoogleDriveOAuth(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 shrink-0">
-        <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
-        <span id="gDriveBtnLabel">Connect Drive</span>
-      </button>
-    </div>
-
-    <!-- Last Backup Timestamp & Action Triggers -->
-    <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px]">
-      <div>
-        <span class="text-slate-400 block">Last Backup Done:</span>
-        <span id="lastBackupDisplay" class="text-emerald-400 font-semibold font-mono">Never</span>
-      </div>
-      <div class="flex space-x-1">
-        <button type="button" onclick="restoreFromDriveNow()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
-          <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
-          <span>Restore</span>
-        </button>
-        <button type="button" onclick="manualBackupNow()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
-          <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
-          <span>Backup</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-white">Google Authentication</span>
+              <span class="text-xs text-indigo-400 font-mono">Firebase Auth</span>
+            </div>
+                        
+            <div id="googleAccountStatus" class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center space-x-2 truncate">
+                <i data-lucide="user-check" class="w-4 h-4 text-emerald-400"></i>
+                <span id="googleAccountText" class="text-slate-300 text-xs font-mono truncate">Signed In via Google</span>
+              </div>
+              <button type="button" onclick="showToast('Cloud Firestore Sync Active!')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 shrink-0">
+                <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
+                <span>Sync Active</span>
+              </button>
+            </div>
+          </div>
+   
         <!-- Course & Fee Master -->
         <div class="space-y-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
           <div class="flex justify-between items-center">
@@ -1051,16 +1030,14 @@
     function subscribeToRealtimeFirestore() {
       // Stream Students collection changes automatically
       db.collection("students").onSnapshot((snapshot) => {
-        if (!snapshot.empty) {
-          let updatedStudents = [];
-          snapshot.forEach((doc) => {
-            updatedStudents.push({ id: doc.id, ...doc.data() });
-          });
-          students = updatedStudents;
-          localStorage.setItem('smaartus_students_db', JSON.stringify(students));
-          renderStudents();
-          generateAllReports();
-        }
+        let updatedStudents = [];
+        snapshot.forEach((doc) => {
+          updatedStudents.push({ id: doc.id, ...doc.data() });
+        });
+        students = updatedStudents;
+        saveLocalState();
+        renderStudents();
+        generateAllReports();
       }, (error) => console.error("Students sync error:", error));
 
       // Stream Ledger collection changes automatically
@@ -1087,15 +1064,13 @@
       lucide.createIcons();
       document.getElementById('attendanceDate').value = getTodayYYYYMMDD();
 
-      // Instantly render locally cached data on device
+      // 1. Instantly render locally cached data on device
       renderStudents();
       renderLedger();
       generateAllReports();
 
-      // Silently restore Google Drive connection if available
-      if (driveAccessToken) {
-        connectGoogleDriveOAuth(false);
-      }
+      // 2. Start Real-time Cloud Firestore synchronization
+      subscribeToRealtimeFirestore();
     };
 
     function applyAppConfigUI() {
@@ -1104,20 +1079,9 @@
       document.getElementById('appDocumentTitle').innerText = name + " PWA";
 
       const gStatus = document.getElementById('googleAccountText');
-      if (driveAccessToken && appConfig.googleAccount) {
-        gStatus.innerText = `Connected: ${appConfig.googleAccount}`;
+      if (gStatus) {
+        gStatus.innerText = "Real-time Cloud Firestore Connected";
         gStatus.className = "text-emerald-400 font-medium truncate";
-        document.getElementById('gDriveBtnLabel').innerText = "Connected";
-      } else {
-        gStatus.innerText = "Not Connected";
-        gStatus.className = "text-slate-400 font-normal truncate";
-        document.getElementById('gDriveBtnLabel').innerText = "Connect Drive";
-      }
-
-      // Display Last Backup Timestamp
-      const lastBackupEl = document.getElementById('lastBackupDisplay');
-      if (lastBackupEl) {
-        lastBackupEl.innerText = appConfig.lastBackupTimestamp || appConfig.lastBackupDate || "Never";
       }
     }
 
@@ -1684,44 +1648,46 @@
     }
 
     function saveStudent(e) {
-      e.preventDefault();
-      const id = document.getElementById('studentId').value || 'STD-' + Date.now().toString().slice(-4);
-      
-      const customDataObj = {};
-      document.querySelectorAll('.student-custom-input').forEach(inp => {
-        customDataObj[inp.dataset.customfield] = inp.value;
-      });
+  e.preventDefault();
+  const id = document.getElementById('studentId').value || 'STD-' + Date.now().toString().slice(-4);
+  
+  const customDataObj = {};
+  document.querySelectorAll('.student-custom-input').forEach(inp => {
+    customDataObj[inp.dataset.customfield] = inp.value;
+  });
 
-      const newStudent = {
-        id: id,
-        firstName: document.getElementById('firstName').value,
-        middleName: document.getElementById('middleName').value,
-        surname: document.getElementById('surname').value,
-        mobile: document.getElementById('mobile').value,
-        dob: document.getElementById('dob').value,
-        school: document.getElementById('school').value,
-        branch: document.getElementById('branch').value,
-        course: document.getElementById('course').value,
-        level: document.getElementById('levelSelect').value,
-        startDate: document.getElementById('startDate').value,
-        address: document.getElementById('address').value,
-        customData: customDataObj
-      };
+  const newStudent = {
+    id: id,
+    firstName: document.getElementById('firstName').value,
+    middleName: document.getElementById('middleName').value,
+    surname: document.getElementById('surname').value,
+    mobile: document.getElementById('mobile').value,
+    dob: document.getElementById('dob').value,
+    school: document.getElementById('school').value,
+    branch: document.getElementById('branch').value,
+    course: document.getElementById('course').value,
+    level: document.getElementById('levelSelect').value,
+    startDate: document.getElementById('startDate').value,
+    address: document.getElementById('address').value,
+    customData: customDataObj
+  };
 
-      const idx = students.findIndex(s => s.id === id);
-      if (idx >= 0) students[idx] = newStudent;
-      else students.push(newStudent);
+  // Save to local state
+  const idx = students.findIndex(s => s.id === id);
+  if (idx >= 0) students[idx] = newStudent;
+  else students.push(newStudent);
 
-      saveLocalState();
-      // Save directly to Cloud Firestore for real-time synchronization
-      db.collection("students").doc(newStudent.id).set(newStudent)
-        .then(() => showToast("Synced across all devices!"))
-        .catch((err) => console.error("Cloud write error:", err));
-      closeStudentModal();
-      renderStudents();
-      checkAllNotifications(false);
-      triggerDailyAutoBackup();
-    }
+  saveLocalState();
+  
+  // Sync directly to Cloud Firestore
+  db.collection("students").doc(newStudent.id).set(newStudent)
+    .then(() => showToast("Synced across all devices!"))
+    .catch((err) => console.error("Firestore write error:", err));
+
+  closeStudentModal();
+  renderStudents();
+  checkAllNotifications(false);
+}
 
     function editStudent(id) {
       const s = students.find(x => x.id === id);
