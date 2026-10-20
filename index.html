@@ -584,23 +584,7 @@
   </div>
 
   <!-- ADMIN MASTER SETTINGS MODAL -->
-   <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px]">
-  <div>
-    <span class="text-slate-400 block">Last Backup Done:</span>
-    <span id="lastBackupDisplay" class="text-emerald-400 font-semibold font-mono">Never</span>
-  </div>
-  <div class="flex space-x-1">
-    <button type="button" onclick="restoreFromDriveNow()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
-      <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
-      <span>Restore / Sync</span>
-    </button>
-    <button type="button" onclick="manualBackupNow()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
-      <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
-      <span>Backup Now</span>
-    </button>
-  </div>
-</div>
-  <div id="adminSettingsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 hidden">
+     <div id="adminSettingsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 hidden">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
       <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800">
         <h3 class="font-bold text-white flex items-center gap-2">
@@ -1028,32 +1012,43 @@
 
     /* --- REAL-TIME FIRESTORE SYNC LISTENERS --- */
     function subscribeToRealtimeFirestore() {
-      // Stream Students collection changes automatically
-      db.collection("students").onSnapshot((snapshot) => {
-        let updatedStudents = [];
-        snapshot.forEach((doc) => {
-          updatedStudents.push({ id: doc.id, ...doc.data() });
-        });
-        students = updatedStudents;
-        saveLocalState();
-        renderStudents();
-        generateAllReports();
-      }, (error) => console.error("Students sync error:", error));
+  // Stream Students collection
+  db.collection("students").onSnapshot((snapshot) => {
+    let updatedStudents = [];
+    snapshot.forEach((doc) => {
+      updatedStudents.push({ id: doc.id, ...doc.data() });
+    });
+    students = updatedStudents;
+    saveLocalState();
+    renderStudents();
+    generateAllReports();
+  }, (error) => console.error("Students sync error:", error));
 
-      // Stream Ledger collection changes automatically
-      db.collection("ledger").onSnapshot((snapshot) => {
-        if (!snapshot.empty) {
-          let updatedLedger = [];
-          snapshot.forEach((doc) => {
-            updatedLedger.push({ id: doc.id, ...doc.data() });
-          });
-          ledger = updatedLedger;
-          localStorage.setItem('smaartus_ledger_db', JSON.stringify(ledger));
-          renderLedger();
-          generateAllReports();
-        }
-      }, (error) => console.error("Ledger sync error:", error));
+  // Stream Ledger collection
+  db.collection("ledger").onSnapshot((snapshot) => {
+    let updatedLedger = [];
+    snapshot.forEach((doc) => {
+      updatedLedger.push({ id: doc.id, ...doc.data() });
+    });
+    ledger = updatedLedger;
+    saveLocalState();
+    renderLedger();
+    generateAllReports();
+  }, (error) => console.error("Ledger sync error:", error));
+
+  // Stream Attendance collection
+  db.collection("attendance").onSnapshot((snapshot) => {
+    let updatedAttendance = {};
+    snapshot.forEach((doc) => {
+      updatedAttendance[doc.id] = doc.data().records || {};
+    });
+    attendance = updatedAttendance;
+    saveLocalState();
+    if (!document.getElementById('tab-attendance').classList.contains('hidden')) {
+      renderAttendanceGrid();
     }
+  }, (error) => console.error("Attendance sync error:", error));
+}
 
     /* --- INITIALIZATION --- */
     window.onload = function() {
@@ -1828,12 +1823,16 @@
     }
 
     function setAttendance(dateVal, stdId, status) {
-      if (!attendance[dateVal]) attendance[dateVal] = {};
-      attendance[dateVal][stdId] = status;
-      saveLocalState();
-      renderAttendanceGrid();
-      triggerDailyAutoBackup();
-    }
+  if (!attendance[dateVal]) attendance[dateVal] = {};
+  attendance[dateVal][stdId] = status;
+  saveLocalState();
+  renderAttendanceGrid();
+
+  // Push attendance record directly to Firestore
+  db.collection("attendance").doc(dateVal).set({
+    records: attendance[dateVal]
+  }).catch(err => console.error("Attendance Firestore write error:", err));
+}
 
     /* --- LEDGER --- */
     function renderLedger() {
@@ -1972,54 +1971,58 @@
     }
 
     function saveLedgerTransaction(e) {
-      e.preventDefault();
-      const txId = document.getElementById('ledgerTxId').value;
-      const type = document.getElementById('ledgerType').value;
-      const category = document.getElementById('ledgerCategory').value;
-      let stdId = document.getElementById('ledgerStudentSelect').value;
-      
-      let noteDetails = document.getElementById('ledgerNotes').value;
+  e.preventDefault();
+  const txId = document.getElementById('ledgerTxId').value;
+  const type = document.getElementById('ledgerType').value;
+  const category = document.getElementById('ledgerCategory').value;
+  let stdId = document.getElementById('ledgerStudentSelect').value;
+  let noteDetails = document.getElementById('ledgerNotes').value;
 
-      if (type === 'Expense') {
-        const branchVal = document.getElementById('ledgerExpenseBranch').value;
-        if (!noteDetails.includes('Branch')) {
-          noteDetails += ` (${branchVal})`;
-        }
-
-        if (category === 'Fee Waiver / Adjustment') {
-          stdId = document.getElementById('ledgerWaiveStudentSelect').value;
-          const targetStudent = students.find(s => s.id === stdId);
-          if (targetStudent) {
-            noteDetails += ` - Waived for ${targetStudent.firstName} ${targetStudent.surname}`;
-          }
-        }
-      }
-
-      const itemData = {
-        id: txId || ('TRX-' + Date.now()),
-        date: document.getElementById('ledgerDate').value,
-        type: type,
-        category: category,
-        amount: parseFloat(document.getElementById('ledgerAmount').value) || 0,
-        studentId: stdId || null,
-        notes: noteDetails
-      };
-
-      if (txId) {
-        const idx = ledger.findIndex(t => t.id === txId);
-        if (idx >= 0) ledger[idx] = itemData;
-      } else {
-        ledger.unshift(itemData);
-      }
-
-      saveLocalState();
-      closeLedgerModal();
-      renderLedger();
-      renderStudents();
-      generateAllReports(); 
-      checkAllNotifications(false);
-      triggerDailyAutoBackup();
+  if (type === 'Expense') {
+    const branchVal = document.getElementById('ledgerExpenseBranch').value;
+    if (!noteDetails.includes('Branch')) {
+      noteDetails += ` (${branchVal})`;
     }
+
+    if (category === 'Fee Waiver / Adjustment') {
+      stdId = document.getElementById('ledgerWaiveStudentSelect').value;
+      const targetStudent = students.find(s => s.id === stdId);
+      if (targetStudent) {
+        noteDetails += ` - Waived for ${targetStudent.firstName} ${targetStudent.surname}`;
+      }
+    }
+  }
+
+  const itemData = {
+    id: txId || ('TRX-' + Date.now()),
+    date: document.getElementById('ledgerDate').value,
+    type: type,
+    category: category,
+    amount: parseFloat(document.getElementById('ledgerAmount').value) || 0,
+    studentId: stdId || null,
+    notes: noteDetails
+  };
+
+  if (txId) {
+    const idx = ledger.findIndex(t => t.id === txId);
+    if (idx >= 0) ledger[idx] = itemData;
+  } else {
+    ledger.unshift(itemData);
+  }
+
+  saveLocalState();
+
+  // Push entry to Cloud Firestore
+  db.collection("ledger").doc(itemData.id).set(itemData)
+    .then(() => showToast("Ledger saved & synced!"))
+    .catch(err => console.error("Ledger Firestore write error:", err));
+
+  closeLedgerModal();
+  renderLedger();
+  renderStudents();
+  generateAllReports(); 
+  checkAllNotifications(false);
+}
 
     /* --- REPORTS ENGINE --- */
     function handlePeriodFilterChange() {
