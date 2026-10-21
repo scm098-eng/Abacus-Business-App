@@ -895,7 +895,7 @@
         <div id="expenseCenterContainer" class="hidden bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 space-y-3">
           <div>
             <label class="block text-slate-400 mb-1">Allocated Center / Branch *</label>
-            <select id="ledgerExpenseBranch" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
+            <select id="ledgerExpenseBranch" onchange="filterExpenseStudentsByBranch()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
               <option value="Sanpada">Sanpada Center</option>
               <option value="Juinagar">Juinagar Center</option>
               <option value="Online">Online Batches</option>
@@ -1797,25 +1797,11 @@
         catSelect.innerHTML += `<option value="${c}">${c}</option>`;
       });
 
-      // Income Student Selector Options
+      // Income Student Selector Options (All Students)
       const stdSelect = document.getElementById('ledgerStudentSelect');
       stdSelect.innerHTML = `<option value="">-- Choose Student --</option>`;
-      
-      // Expense Fee Waiver Student Selector Options
-      const waiveStdSelect = document.getElementById('ledgerWaiveStudentSelect');
-      waiveStdSelect.innerHTML = `<option value="">-- Select Student for Fee Waiver --</option>`;
-
-      // General Expense Student Selector Options (Registration Kit, Book, etc.)
-      const expStdSelect = document.getElementById('ledgerExpenseStudentSelect');
-      if (expStdSelect) {
-        expStdSelect.innerHTML = `<option value="">-- Select Student --</option>`;
-      }
-
       students.forEach(s => {
-        const optionStr = `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch})</option>`;
-        stdSelect.innerHTML += optionStr;
-        waiveStdSelect.innerHTML += optionStr;
-        if (expStdSelect) expStdSelect.innerHTML += optionStr;
+        stdSelect.innerHTML += `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch})</option>`;
       });
 
       if (!editId) {
@@ -1826,6 +1812,38 @@
 
       handleLedgerCategoryChange();
       document.getElementById('ledgerModal').classList.remove('hidden');
+    }
+
+    // Dynamic Filter function based on Allocated Center / Branch selection
+    function filterExpenseStudentsByBranch() {
+      const selectedBranch = document.getElementById('ledgerExpenseBranch').value;
+      const waiveStdSelect = document.getElementById('ledgerWaiveStudentSelect');
+      const expStdSelect = document.getElementById('ledgerExpenseStudentSelect');
+
+      const waivePlaceholder = `<option value="">-- Select Student for Fee Waiver --</option>`;
+      const expPlaceholder = `<option value="">-- Select Student --</option>`;
+
+      waiveStdSelect.innerHTML = waivePlaceholder;
+      if (expStdSelect) expStdSelect.innerHTML = expPlaceholder;
+
+      // Filter students by selected branch (or show all if 'General' is selected)
+      const filteredStudents = selectedBranch === 'General' 
+        ? students 
+        : students.filter(s => s.branch === selectedBranch);
+
+      filteredStudents.forEach(s => {
+        const optionStr = `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch})</option>`;
+        waiveStdSelect.innerHTML += optionStr;
+        if (expStdSelect) expStdSelect.innerHTML += optionStr;
+      });
+
+      // Recalculate amount/notes if student is already selected
+      const category = document.getElementById('ledgerCategory').value;
+      if (category === 'Fee Waiver / Adjustment') {
+        autofillWaiveFeeDetails();
+      } else if (category.includes('Kit') || category.includes('Book') || category.includes('Registration')) {
+        autofillExpenseStudentDetails();
+      }
     }
 
     function handleLedgerCategoryChange() {
@@ -1844,6 +1862,9 @@
         stdContainer.classList.add('hidden');
         expContainer.classList.remove('hidden');
         
+        // Populate filtered student list whenever switching to an expense category
+        filterExpenseStudentsByBranch();
+
         if (category === 'Fee Waiver / Adjustment') {
           waiveStdSelector.classList.remove('hidden');
           expStdSelector.classList.add('hidden');
