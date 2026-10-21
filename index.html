@@ -1413,16 +1413,23 @@
   const currentLevelNum = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
   const isGraduated = currentLevelNum > (config.totalLevels || 8);
 
-  // Count total waiver entries for this student from the ledger
+  // 1. Count Waived Months (Amount = 0 or category = Fee Waiver / Adjustment)
   const waivedEntries = ledger.filter(t => t.studentId === s.id && (t.category === 'Fee Waiver / Adjustment' || (t.notes && t.notes.toLowerCase().includes('waiv'))));
   const totalWaivedMonths = waivedEntries.length;
 
-  // Effective covered duration = Base course months + Waived months
-  const effectiveCoveredMonths = config.baseMonth + totalWaivedMonths;
+  // 2. Count Paid Extension Months from Ledger (Amount > 0)
+  const paidExtEntries = ledger.filter(t => t.studentId === s.id && t.category === 'Extension Monthly Fee' && t.amount > 0);
+  // Calculate total extension months paid based on total paid amount / monthly rate
+  const totalPaidExtAmount = paidExtEntries.reduce((sum, t) => sum + (t.amount || 0), 0);
+  const monthlyExtRate = config.extFee || 1000;
+  const totalPaidExtMonths = Math.floor(totalPaidExtAmount / monthlyExtRate);
 
-  // Calculate extension & overdue status
-  const isExtension = !isGraduated && (completedMonths > effectiveCoveredMonths);
-  const overdueMonths = isExtension ? completedMonths - effectiveCoveredMonths : 0;
+  // 3. Total Covered Duration = Base Months + Waived Months + Paid Extension Months
+  const totalCoveredMonths = config.baseMonth + totalWaivedMonths + totalPaidExtMonths;
+
+  // 4. Calculate Net Overdue Pending Months
+  const netOverdueMonths = Math.max(0, completedMonths - totalCoveredMonths);
+  const isExtension = !isGraduated && (completedMonths > (config.baseMonth + totalWaivedMonths));
 
   return {
     completedMonths,
@@ -1430,8 +1437,10 @@
     isGraduated,
     hasWaivedFee: totalWaivedMonths > 0,
     totalWaivedMonths,
+    totalPaidExtMonths,
+    totalCoveredMonths,
     isExtension,
-    overdueMonths
+    overdueMonths: netOverdueMonths // Reflects actual unpaid extension months
   };
 }
 
