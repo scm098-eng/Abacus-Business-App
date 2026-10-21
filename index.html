@@ -876,18 +876,40 @@
             </select>
           </div>
 
+          <!-- EXTENSION FEE SPECIFIC CONFIGURATION -->
+          <div id="extensionConfigBox" class="hidden grid grid-cols-2 gap-2 bg-slate-950 p-2.5 rounded-xl border border-indigo-500/30">
+            <div>
+              <label class="block text-indigo-300 font-semibold mb-1">Extension Action *</label>
+              <select id="ledgerExtAction" onchange="autofillStudentFeeDetails()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-bold">
+                <option value="Charged">Fee Charged</option>
+                <option value="Waived">Fee Waived Off</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-indigo-300 font-semibold mb-1">Select Duration *</label>
+              <select id="ledgerExtMonths" onchange="autofillStudentFeeDetails()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-bold">
+                <option value="1">1 Month</option>
+                <option value="2">2 Months</option>
+                <option value="3">3 Months</option>
+                <option value="4">4 Months</option>
+                <option value="5">5 Months</option>
+                <option value="6">6 Months</option>
+              </select>
+            </div>
+          </div>
+
           <div class="grid grid-cols-3 gap-2">
             <div>
               <label class="block text-slate-400 mb-0.5">Course</label>
-              <input type="text" id="ledgerAutoCourse" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-medium" placeholder="Course" />
+              <input type="text" id="ledgerAutoCourse" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-medium text-xs" placeholder="Course" />
             </div>
             <div>
               <label class="block text-slate-400 mb-0.5">Level</label>
-              <input type="text" id="ledgerAutoLevel" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-medium" placeholder="Level" />
+              <input type="text" id="ledgerAutoLevel" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-medium text-xs" placeholder="Level" />
             </div>
             <div>
               <label class="block text-slate-400 mb-0.5">Branch</label>
-              <input type="text" id="ledgerAutoBranch" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-medium" placeholder="Branch" />
+              <input type="text" id="ledgerAutoBranch" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-medium text-xs" placeholder="Branch" />
             </div>
           </div>
         </div>
@@ -1916,31 +1938,24 @@
       
       const stdContainer = document.getElementById('studentSelectorContainer');
       const expContainer = document.getElementById('expenseCenterContainer');
-      const waiveStdSelector = document.getElementById('waiveFeeStudentSelector');
-      const expStdSelector = document.getElementById('expenseStudentSelector');
+      const extConfigBox = document.getElementById('extensionConfigBox');
 
       if (type === 'Income' && (category.includes('Fee') || category.includes('Base') || category.includes('Extension') || category.includes('Registration') || category.includes('Book') || category.includes('Kit'))) {
         stdContainer.classList.remove('hidden');
         expContainer.classList.add('hidden');
+
+        // Toggle Extension Fee specific action inputs
+        if (category.includes('Extension')) {
+          extConfigBox.classList.remove('hidden');
+        } else {
+          extConfigBox.classList.add('hidden');
+        }
+
+        autofillStudentFeeDetails();
       } else if (type === 'Expense') {
         stdContainer.classList.add('hidden');
         expContainer.classList.remove('hidden');
-        
-        // Populate filtered student list whenever switching to an expense category
         filterExpenseStudentsByBranch();
-
-        if (category === 'Fee Waiver / Adjustment') {
-          waiveStdSelector.classList.remove('hidden');
-          expStdSelector.classList.add('hidden');
-          autofillWaiveFeeDetails();
-        } else if (category.includes('Kit') || category.includes('Book') || category.includes('Registration')) {
-          waiveStdSelector.classList.add('hidden');
-          expStdSelector.classList.remove('hidden');
-          autofillExpenseStudentDetails();
-        } else {
-          waiveStdSelector.classList.add('hidden');
-          expStdSelector.classList.add('hidden');
-        }
       } else {
         stdContainer.classList.add('hidden');
         expContainer.classList.add('hidden');
@@ -1972,13 +1987,26 @@
         
         if (category === 'Registration Fee') {
           document.getElementById('ledgerAmount').value = config.regFee || 1500;
+          document.getElementById('ledgerNotes').value = `${s.firstName} ${s.surname} - Registration Fee (${s.course} ${s.level}) - ${s.branch}`;
         } else if (category === 'Base Course Fee') {
           document.getElementById('ledgerAmount').value = config.baseFee;
-        } else if (category === 'Extension Monthly Fee') {
-          document.getElementById('ledgerAmount').value = config.extFee;
-        }
+          document.getElementById('ledgerNotes').value = `${s.firstName} ${s.surname} - Base Fee (${s.course} ${s.level}) - ${s.branch}`;
+        } else if (category.includes('Extension')) {
+          const action = document.getElementById('ledgerExtAction').value;
+          const months = parseInt(document.getElementById('ledgerExtMonths').value) || 1;
+          const monthlyRate = config.extFee || 1000;
 
-        document.getElementById('ledgerNotes').value = `${s.firstName} ${s.surname} - ${s.course} (${s.level}) - ${s.branch}`;
+          if (action === 'Waived') {
+            document.getElementById('ledgerAmount').value = 0;
+            document.getElementById('ledgerNotes').value = `Extension Fee Waived Off (${months} Month${months > 1 ? 's' : ''}) - ${s.firstName} ${s.surname} (${s.course} - ${s.branch})`;
+          } else {
+            document.getElementById('ledgerAmount').value = monthlyRate * months;
+            document.getElementById('ledgerNotes').value = `Extension Fee Paid (${months} Month${months > 1 ? 's' : ''}) - ${s.firstName} ${s.surname} (${s.course} - ${s.branch})`;
+          }
+        } else if (category.includes('Book') || category.includes('Kit')) {
+          document.getElementById('ledgerAmount').value = 500;
+          document.getElementById('ledgerNotes').value = `${s.firstName} ${s.surname} - Material/Book Kit - ${s.branch}`;
+        }
       }
     }
 
@@ -2012,11 +2040,21 @@
       e.preventDefault();
       const txId = document.getElementById('ledgerTxId').value;
       const type = document.getElementById('ledgerType').value;
-      const category = document.getElementById('ledgerCategory').value;
+      let category = document.getElementById('ledgerCategory').value; // Changed to 'let' to allow re-assignment
       let stdId = document.getElementById('ledgerStudentSelect').value;
       let noteDetails = document.getElementById('ledgerNotes').value;
 
-      if (type === 'Expense') {
+      // --- 1. INCOME HANDLING ---
+      if (type === 'Income') {
+        if (category.includes('Extension')) {
+          const extActionElem = document.getElementById('ledgerExtAction');
+          if (extActionElem && extActionElem.value === 'Waived') {
+            category = 'Fee Waiver / Adjustment'; // Re-assign category so student dashboard registers the waiver
+          }
+        }
+      } 
+      // --- 2. EXPENSE HANDLING ---
+      else if (type === 'Expense') {
         const branchVal = document.getElementById('ledgerExpenseBranch').value;
 
         if (category === 'Fee Waiver / Adjustment') {
