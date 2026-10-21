@@ -1126,51 +1126,85 @@
 
     /* --- AUTHENTICATION & INITIALIZATION --- */
     auth.onAuthStateChanged((user) => {
-      const loginGate = document.getElementById('loginGateScreen');
-      const mainApp = document.getElementById('mainAppContainer');
-      const statusText = document.getElementById('loginStatusText');
-      const userBadge = document.getElementById('userEmailBadge');
+  const loginGate = document.getElementById('loginGateScreen');
+  const mainApp = document.getElementById('mainAppContainer');
+  const statusText = document.getElementById('loginStatusText');
+  const userBadge = document.getElementById('userEmailBadge');
 
-      if (user) {
-        // Check if the signed-in user's email is in the allowed list
-        const userEmail = (user.email || '').toLowerCase();
-        const isAuthorized = AUTHORIZED_EMAILS.some(email => email.toLowerCase() === userEmail);
+  if (user) {
+    // 1. Check if the signed-in user's email is in the allowed list
+    const userEmail = (user.email || '').toLowerCase();
+    const isAuthorized = AUTHORIZED_EMAILS.some(email => email.toLowerCase() === userEmail);
 
-        if (!isAuthorized) {
-          // Reject access and log out unauthorized user
-          auth.signOut();
-          loginGate.classList.remove('hidden');
-          mainApp.classList.add('hidden');
-          statusText.innerText = `Access Denied (${userEmail}). You are not authorized to access this portal.`;
-          statusText.className = "text-xs text-rose-400 font-semibold";
-          return;
-        }
-
-        // Authenticated & Authorized Session
-        loginGate.classList.add('hidden');
-        mainApp.classList.remove('hidden');
-        if (userBadge) userBadge.innerText = user.email || "Authenticated Admin";
-
-        applyAppConfigUI();
-        populateCourseSelects();
-        lucide.createIcons();
-        document.getElementById('attendanceDate').value = getTodayYYYYMMDD();
-
-        // 1. Instantly render locally cached data on device
-        renderStudents();
-        renderLedger();
-        generateAllReports();
-
-        // 2. Start Real-time Cloud Firestore synchronization
-        subscribeToRealtimeFirestore();
-      } else {
-        // Unauthenticated Session
-        loginGate.classList.remove('hidden');
-        mainApp.classList.add('hidden');
-        statusText.innerText = "Please sign in with Google to access student records.";
-        statusText.className = "text-xs text-slate-500";
+    if (!isAuthorized) {
+      // Reject access and log out unauthorized user
+      auth.signOut();
+      if (loginGate) loginGate.classList.remove('hidden');
+      if (mainApp) mainApp.classList.add('hidden');
+      if (statusText) {
+        statusText.innerText = `Access Denied (${userEmail}). You are not authorized to access this portal.`;
+        statusText.className = "text-xs text-rose-400 font-semibold";
       }
+      return;
+    }
+
+    // 2. Authorized User Access Granted
+    if (loginGate) loginGate.classList.add('hidden');
+    if (mainApp) mainApp.classList.remove('hidden');
+    if (userBadge) userBadge.innerText = user.email || "Authenticated Admin";
+
+    // 3. Initialize App UI Elements
+    if (typeof applyAppConfigUI === 'function') applyAppConfigUI();
+    if (typeof populateCourseSelects === 'function') populateCourseSelects();
+    if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+    const attDateElem = document.getElementById('attendanceDate');
+    if (attDateElem && typeof getTodayYYYYMMDD === 'function') attDateElem.value = getTodayYYYYMMDD();
+
+    // 4. Fetch fresh collections directly from Firestore
+    Promise.all([
+      db.collection("students").get(),
+      db.collection("ledger").get()
+    ]).then(([studentsSnap, ledgerSnap]) => {
+      if (!studentsSnap.empty) {
+        students = [];
+        studentsSnap.forEach(doc => students.push(doc.data()));
+      }
+
+      if (!ledgerSnap.empty) {
+        ledger = [];
+        ledgerSnap.forEach(doc => ledger.push(doc.data()));
+      }
+
+      // Sync local storage cache and refresh all views
+      saveLocalState();
+      renderStudents();
+      renderLedger();
+      if (typeof generateAllReports === 'function') generateAllReports();
+      if (typeof checkAllNotifications === 'function') checkAllNotifications(false);
+      if (typeof subscribeToRealtimeFirestore === 'function') subscribeToRealtimeFirestore();
+    }).catch(err => {
+      console.error("Firestore initialization error:", err);
+      // Fallback to locally cached data if offline
+      renderStudents();
+      renderLedger();
+      if (typeof generateAllReports === 'function') generateAllReports();
     });
+
+  } else {
+    // 5. Unauthenticated Session State
+    if (loginGate) loginGate.classList.remove('hidden');
+    if (mainApp) mainApp.classList.add('hidden');
+    if (statusText) {
+      statusText.innerText = "Please sign in with Google to access student records.";
+      statusText.className = "text-xs text-slate-500";
+    }
+    ledger = [];
+    students = [];
+    saveLocalState();
+    renderStudents();
+    renderLedger();
+  }
+});
 
     function handleGoogleSignIn() {
       const provider = new firebase.auth.GoogleAuthProvider();
