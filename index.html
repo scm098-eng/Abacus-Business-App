@@ -902,11 +902,34 @@
               <option value="General">General / Combined</option>
             </select>
           </div>
-          <div id="waiveFeeStudentSelector" class="hidden">
-            <label class="block text-amber-300 font-semibold mb-1">Waive Fee For Student *</label>
-            <select id="ledgerWaiveStudentSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
+
+          <!-- General Expense Student Selector (For Registration Kit, Book, etc.) -->
+          <div id="expenseStudentSelector" class="hidden">
+            <label class="block text-indigo-300 font-semibold mb-1">Select Student (Optional) *</label>
+            <select id="ledgerExpenseStudentSelect" onchange="autofillExpenseStudentDetails()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
               <!-- Dynamic Options -->
             </select>
+          </div>
+
+          <!-- Fee Waiver Specific Block -->
+          <div id="waiveFeeStudentSelector" class="hidden space-y-3">
+            <div>
+              <label class="block text-amber-300 font-semibold mb-1">Waive Fee For Student *</label>
+              <select id="ledgerWaiveStudentSelect" onchange="autofillWaiveFeeDetails()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
+                <!-- Dynamic Options -->
+              </select>
+            </div>
+            <div>
+              <label class="block text-amber-300 font-semibold mb-1">Number of Month(s) to Waive *</label>
+              <select id="ledgerWaiveMonths" onchange="autofillWaiveFeeDetails()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-bold">
+                <option value="1">1 Month</option>
+                <option value="2">2 Months</option>
+                <option value="3">3 Months</option>
+                <option value="4">4 Months</option>
+                <option value="5">5 Months</option>
+                <option value="6">6 Months</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -1774,15 +1797,25 @@
         catSelect.innerHTML += `<option value="${c}">${c}</option>`;
       });
 
+      // Income Student Selector Options
       const stdSelect = document.getElementById('ledgerStudentSelect');
       stdSelect.innerHTML = `<option value="">-- Choose Student --</option>`;
       
+      // Expense Fee Waiver Student Selector Options
       const waiveStdSelect = document.getElementById('ledgerWaiveStudentSelect');
       waiveStdSelect.innerHTML = `<option value="">-- Select Student for Fee Waiver --</option>`;
 
+      // General Expense Student Selector Options (Registration Kit, Book, etc.)
+      const expStdSelect = document.getElementById('ledgerExpenseStudentSelect');
+      if (expStdSelect) {
+        expStdSelect.innerHTML = `<option value="">-- Select Student --</option>`;
+      }
+
       students.forEach(s => {
-        stdSelect.innerHTML += `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch})</option>`;
-        waiveStdSelect.innerHTML += `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch})</option>`;
+        const optionStr = `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch})</option>`;
+        stdSelect.innerHTML += optionStr;
+        waiveStdSelect.innerHTML += optionStr;
+        if (expStdSelect) expStdSelect.innerHTML += optionStr;
       });
 
       if (!editId) {
@@ -1802,8 +1835,9 @@
       const stdContainer = document.getElementById('studentSelectorContainer');
       const expContainer = document.getElementById('expenseCenterContainer');
       const waiveStdSelector = document.getElementById('waiveFeeStudentSelector');
+      const expStdSelector = document.getElementById('expenseStudentSelector');
 
-      if (type === 'Income' && (category.includes('Fee') || category.includes('Base') || category.includes('Extension') || category.includes('Registration'))) {
+      if (type === 'Income' && (category.includes('Fee') || category.includes('Base') || category.includes('Extension') || category.includes('Registration') || category.includes('Book') || category.includes('Kit'))) {
         stdContainer.classList.remove('hidden');
         expContainer.classList.add('hidden');
       } else if (type === 'Expense') {
@@ -1812,12 +1846,30 @@
         
         if (category === 'Fee Waiver / Adjustment') {
           waiveStdSelector.classList.remove('hidden');
+          expStdSelector.classList.add('hidden');
+          autofillWaiveFeeDetails();
+        } else if (category.includes('Kit') || category.includes('Book') || category.includes('Registration')) {
+          waiveStdSelector.classList.add('hidden');
+          expStdSelector.classList.remove('hidden');
+          autofillExpenseStudentDetails();
         } else {
           waiveStdSelector.classList.add('hidden');
+          expStdSelector.classList.add('hidden');
         }
       } else {
         stdContainer.classList.add('hidden');
         expContainer.classList.add('hidden');
+      }
+    }
+
+    function autofillExpenseStudentDetails() {
+      const stdId = document.getElementById('ledgerExpenseStudentSelect').value;
+      const category = document.getElementById('ledgerCategory').value;
+      const s = students.find(x => x.id === stdId);
+
+      if (s) {
+        document.getElementById('ledgerExpenseBranch').value = s.branch;
+        document.getElementById('ledgerNotes').value = `${category} expense for ${s.firstName} ${s.surname} (${s.course} - ${s.branch})`;
       }
     }
 
@@ -1881,16 +1933,22 @@
 
       if (type === 'Expense') {
         const branchVal = document.getElementById('ledgerExpenseBranch').value;
-        if (!noteDetails.includes('Branch')) {
-          noteDetails += ` (${branchVal})`;
-        }
 
         if (category === 'Fee Waiver / Adjustment') {
           stdId = document.getElementById('ledgerWaiveStudentSelect').value;
+          const months = document.getElementById('ledgerWaiveMonths').value || 1;
           const targetStudent = students.find(s => s.id === stdId);
           if (targetStudent) {
-            noteDetails += ` - Waived for ${targetStudent.firstName} ${targetStudent.surname}`;
+            noteDetails = `Fee Waived (${months} Month${months > 1 ? 's' : ''}) for ${targetStudent.firstName} ${targetStudent.surname} (${targetStudent.course} - ${branchVal})`;
           }
+        } else if (category.includes('Kit') || category.includes('Book') || category.includes('Registration')) {
+          stdId = document.getElementById('ledgerExpenseStudentSelect').value;
+          const targetStudent = students.find(s => s.id === stdId);
+          if (targetStudent) {
+            noteDetails = `${category} expense for ${targetStudent.firstName} ${targetStudent.surname} (${targetStudent.course} - ${branchVal})`;
+          }
+        } else if (!noteDetails.includes('Branch')) {
+          noteDetails += ` (${branchVal})`;
         }
       }
 
