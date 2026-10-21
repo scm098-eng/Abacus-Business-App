@@ -1385,6 +1385,34 @@
       if (dobVal) document.getElementById('ageDisplay').value = calculateAge(dobVal) + " Years";
     }
 
+    function calculateStudentFeeStatus(s) {
+  const completedMonths = calculateCompletedMonths(s.startDate);
+  const config = getCourseFees(s.course);
+  const currentLevelNum = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
+  const isGraduated = currentLevelNum > (config.totalLevels || 8);
+
+  // Count total waiver entries for this student from the ledger
+  const waivedEntries = ledger.filter(t => t.studentId === s.id && (t.category === 'Fee Waiver / Adjustment' || (t.notes && t.notes.toLowerCase().includes('waiv'))));
+  const totalWaivedMonths = waivedEntries.length;
+
+  // Effective covered duration = Base course months + Waived months
+  const effectiveCoveredMonths = config.baseMonth + totalWaivedMonths;
+
+  // Calculate extension & overdue status
+  const isExtension = !isGraduated && (completedMonths > effectiveCoveredMonths);
+  const overdueMonths = isExtension ? completedMonths - effectiveCoveredMonths : 0;
+
+  return {
+    completedMonths,
+    config,
+    isGraduated,
+    hasWaivedFee: totalWaivedMonths > 0,
+    totalWaivedMonths,
+    isExtension,
+    overdueMonths
+  };
+}
+
     /* --- NAVIGATION --- */
     function switchTab(tabName) {
       ['students', 'attendance', 'ledger', 'reports'].forEach(t => {
@@ -1420,16 +1448,53 @@
       });
 
       filtered.forEach(s => {
-        const completedMonths = calculateCompletedMonths(s.startDate);
-        const config = getCourseFees(s.course);
-        const currentLevelNum = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
+        // Use the centralized status calculation helper
+        const status = calculateStudentFeeStatus(s);
 
-        const isGraduated = currentLevelNum > (config.totalLevels || 8);
-        
-        const hasWaivedFee = ledger.some(t => t.type === 'Expense' && t.category === 'Fee Waiver / Adjustment' && t.studentId === s.id);
-        const isExtension = !isGraduated && !hasWaivedFee && (completedMonths > config.baseMonth);
-        const overdueMonths = isExtension ? completedMonths - config.baseMonth : 0;
+        // Map helper properties to your local variables
+        const completedMonths = status.completedMonths;
+        const config = status.config;
+        const isGraduated = status.isGraduated;
+        const hasWaivedFee = status.hasWaivedFee;
+        const isExtension = status.isExtension;
+        const overdueMonths = status.overdueMonths;
         const age = calculateAge(s.dob);
+
+        // Your existing HTML card generation logic continues below unchanged...
+        const card = document.createElement('div');
+        card.className = "bg-slate-800/90 border border-slate-700/60 rounded-2xl p-4 space-y-3 relative shadow-lg hover:border-slate-600 transition";
+        card.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="font-bold text-white text-base">${s.firstName} ${s.surname}</h3>
+              <p class="text-xs text-slate-400">${s.school || 'School Not Set'} • ${age} yrs</p>
+            </div>
+            <div class="flex flex-col items-end space-y-1">
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.branch === 'Sanpada' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : s.branch === 'Juinagar' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-violet-500/10 text-violet-400 border-violet-500/30'}">${s.branch}</span>
+              ${isGraduated ? '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">🎓 Graduated</span>' : ''}
+              ${hasWaivedFee ? `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">${status.totalWaivedMonths} Mth Waived</span>` : ''}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-xs bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/40">
+            <div>
+              <span class="text-slate-400 block">Course / Level</span>
+              <span class="font-medium text-white">${s.course} (${s.level})</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">Start Date</span>
+              <span class="font-medium text-slate-300">${formatDateToDDMMYYYY(s.startDate)}</span>
+            </div>
+            <div class="col-span-2">
+              <span class="text-slate-400 block">Tenure Duration</span>
+              <span class="font-medium ${isGraduated ? 'text-amber-300' : isExtension ? 'text-amber-400' : 'text-emerald-400'}">
+                ${isGraduated ? 'All Course Levels Completed (No Fee)' : `Month ${completedMonths}${isExtension ? ` (Ext +${overdueMonths})` : hasWaivedFee ? ` (${status.totalWaivedMonths} Mth Waived)` : ''}`}
+              </span>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
 
         const card = document.createElement('div');
         card.className = "bg-slate-800/90 border border-slate-700/60 rounded-2xl p-4 space-y-3 relative shadow-lg hover:border-slate-600 transition";
@@ -1485,10 +1550,9 @@
           </div>
         `;
         grid.appendChild(card);
-      });
+      };
       lucide.createIcons();
-    }
-
+  
     function openWaMsgModal(stdId) {
       const s = students.find(x => x.id === stdId);
       if(!s) return;
