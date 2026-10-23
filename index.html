@@ -1497,11 +1497,16 @@
 
     /* --- STUDENT DIRECTORY --- */
     function renderStudents() {
-      const query = document.getElementById('studentSearch').value.toLowerCase();
-      const branchFilter = document.getElementById('studentBranchFilter').value;
-      const courseFilter = document.getElementById('studentCourseFilter').value;
+      const searchElem = document.getElementById('studentSearch');
+      const branchElem = document.getElementById('studentBranchFilter');
+      const courseElem = document.getElementById('studentCourseFilter');
+
+      const query = searchElem ? searchElem.value.toLowerCase() : '';
+      const branchFilter = branchElem ? branchElem.value : 'All';
+      const courseFilter = courseElem ? courseElem.value : 'All';
 
       const grid = document.getElementById('studentListGrid');
+      if (!grid) return;
       grid.innerHTML = '';
 
       const filtered = students.filter(s => {
@@ -1512,20 +1517,28 @@
         return matchesSearch && matchesBranch && matchesCourse;
       });
 
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-12 text-center text-slate-400">
+            <i data-lucide="users" class="w-12 h-12 mx-auto mb-3 opacity-30"></i>
+            <p class="text-sm font-medium">No students found matching your filters.</p>
+          </div>`;
+        if (window.lucide) lucide.createIcons();
+        return;
+      }
+
       filtered.forEach(s => {
         // Use the centralized status calculation helper
         const status = calculateStudentFeeStatus(s);
 
-        // Map helper properties to your local variables
         const completedMonths = status.completedMonths;
         const config = status.config;
         const isGraduated = status.isGraduated;
         const hasWaivedFee = status.hasWaivedFee;
         const isExtension = status.isExtension;
         const overdueMonths = status.overdueMonths;
-        const age = calculateAge(s.dob);
+        const age = s.dob ? calculateAge(s.dob) : '0';
 
-        // Your existing HTML card generation logic continues below unchanged...
         const card = document.createElement('div');
         card.className = "bg-slate-800/90 border border-slate-700/60 rounded-2xl p-4 space-y-3 relative shadow-lg hover:border-slate-600 transition";
         card.innerHTML = `
@@ -1535,7 +1548,7 @@
               <p class="text-xs text-slate-400">${s.school || 'School Not Set'} • ${age} yrs</p>
             </div>
             <div class="flex flex-col items-end space-y-1">
-              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.branch === 'Sanpada' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : s.branch === 'Juinagar' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-violet-500/10 text-violet-400 border-violet-500/30'}">${s.branch}</span>
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.branch === 'Sanpada' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : s.branch === 'Juinagar' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-violet-500/10 text-violet-400 border-violet-500/30'}">${s.branch || 'General'}</span>
               ${isGraduated ? '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">🎓 Graduated</span>' : ''}
               ${hasWaivedFee ? `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">${status.totalWaivedMonths} Mth Waived</span>` : ''}
             </div>
@@ -1544,94 +1557,65 @@
           <div class="grid grid-cols-2 gap-2 text-xs bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/40">
             <div>
               <span class="text-slate-400 block">Course / Level</span>
-              <span class="font-medium text-white">${s.course} (${s.level})</span>
+              <span class="font-medium text-white">${s.course || 'Abacus'} (${s.level || 'Level 1'})</span>
             </div>
             <div>
               <span class="text-slate-400 block">Start Date</span>
-              <span class="font-medium text-slate-300">${formatDateToDDMMYYYY(s.startDate)}</span>
-            </div>
-            <div class="col-span-2">
-              <span class="text-slate-400 block">Tenure Duration</span>
-              <span class="font-medium ${isGraduated ? 'text-amber-300' : isExtension ? 'text-amber-400' : 'text-emerald-400'}">
-                ${isGraduated ? 'All Course Levels Completed (No Fee)' : `Month ${completedMonths}${isExtension ? ` (Ext +${overdueMonths})` : hasWaivedFee ? ` (${status.totalWaivedMonths} Mth Waived)` : ''}`}
-              </span>
-            </div>
-          </div>
-        `;
-        grid.appendChild(card);
-      });
-
-        const card = document.createElement('div');
-        card.className = "bg-slate-800/90 border border-slate-700/60 rounded-2xl p-4 space-y-3 relative shadow-lg hover:border-slate-600 transition";
-        card.innerHTML = `
-          <div class="flex justify-between items-start">
-            <div>
-              <h3 class="font-bold text-white text-base">${s.firstName} ${s.surname}</h3>
-              <p class="text-xs text-slate-400">${s.school || 'School Not Set'} • ${age} yrs</p>
-            </div>
-            <div class="flex flex-col items-end space-y-1">
-              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.branch === 'Sanpada' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : s.branch === 'Juinagar' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-violet-500/10 text-violet-400 border-violet-500/30'}">${s.branch}</span>
-              ${isGraduated ? '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">🎓 Graduated</span>' : ''}
-              ${hasWaivedFee ? '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">Fee Waived</span>' : ''}
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2 text-xs bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/40">
-            <div>
-              <span class="text-slate-400 block">Course / Level</span>
-              <span class="font-medium text-white">${s.course} (${s.level})</span>
-            </div>
-            <div>
-              <span class="text-slate-400 block">Start Date</span>
-              <span class="font-medium text-slate-300">${formatDateToDDMMYYYY(s.startDate)}</span>
+              <span class="font-medium text-slate-300">${typeof formatDateToDDMMYYYY === 'function' ? formatDateToDDMMYYYY(s.startDate) : s.startDate}</span>
             </div>
             <div class="col-span-2">
               <span class="text-slate-400 block">Tenure Duration</span>
               <span class="font-medium ${isGraduated ? 'text-amber-300' : hasWaivedFee ? 'text-teal-300' : isExtension ? 'text-amber-400' : 'text-emerald-400'}">
-                ${isGraduated ? 'All Course Levels Completed (No Fee)' : hasWaivedFee ? 'Extension Fee Waived Off' : `Month ${completedMonths}${isExtension ? `(Ext +${overdueMonths})` : ''}`}
+                ${isGraduated ? 'All Course Levels Completed (No Fee)' : hasWaivedFee ? `Month ${completedMonths} (${status.totalWaivedMonths} Mth Waived)` : `Month ${completedMonths}${isExtension ? ` (Ext +${overdueMonths})` : ''}`}
               </span>
             </div>
           </div>
 
           <div class="flex items-center justify-between pt-1 text-xs">
             <div class="flex space-x-1">
-              <button onclick="openWaMsgModal('${s.id}')" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 font-semibold flex items-center space-x-1">
+              <button onclick="openWaMsgModal('${s.id}')" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 font-semibold flex items-center space-x-1 transition-colors">
                 <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
                 <span>WhatsApp</span>
               </button>
-              <button onclick="openPromoteModal('${s.id}')" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 font-semibold flex items-center space-x-1">
+              <button onclick="openPromoteModal('${s.id}')" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 font-semibold flex items-center space-x-1 transition-colors">
                 <i data-lucide="graduation-cap" class="w-3.5 h-3.5"></i>
                 <span>🎓 Promote</span>
               </button>
             </div>
             <div class="flex space-x-1">
-              <button onclick="editStudent('${s.id}')" class="p-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600">
+              <button onclick="editStudent('${s.id}')" class="p-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors" title="Edit Student">
                 <i data-lucide="edit-3" class="w-4 h-4"></i>
               </button>
-              <button onclick="deleteStudent('${s.id}')" class="p-1.5 rounded-lg bg-rose-900/30 text-rose-400 hover:bg-rose-900/50">
+              <button onclick="deleteStudent('${s.id}')" class="p-1.5 rounded-lg bg-rose-900/30 text-rose-400 hover:bg-rose-900/50 transition-colors" title="Delete Student">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
               </button>
             </div>
           </div>
         `;
         grid.appendChild(card);
-      };
-      lucide.createIcons();
-  
+      });
+
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    }
+
     function openWaMsgModal(stdId) {
       const s = students.find(x => x.id === stdId);
       if(!s) return;
 
       const container = document.getElementById('waMsgOptionsContainer');
+      if(!container) return;
       container.innerHTML = '';
 
       const completedMonths = calculateCompletedMonths(s.startDate);
       const config = getCourseFees(s.course);
       const overdueMonths = completedMonths > config.baseMonth ? completedMonths - config.baseMonth : 0;
+      const appName = (typeof appConfig !== 'undefined' && appConfig.appName) ? appConfig.appName : "Smaartus Classes";
 
-      const m1 = `🧮 *[${appConfig.appName || "Smaartus Classes"}] Monthly Progress Update*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\nWe are pleased to inform you that *${s.firstName}* has successfully completed Month ${completedMonths} of ${config.baseMonth} for ${s.course} (${s.level}).\n\nThank you for your continued support!\n*${appConfig.appName || "Smaartus Classes"}*`;
-      const m2 = `📋 *[${appConfig.appName || "Smaartus Classes"}] Extension Fee Notice*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\nThis is a friendly reminder that *${s.firstName}* has entered Extension Month ${overdueMonths || 1} for ${s.course}.\n\n• *Extension Fee Due:* ₹${config.extFee}\n\nPlease settle the fee at your earliest convenience to continue seamless learning.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
-      const m3 = `🎉 *Happy Birthday, ${s.firstName}!* 🎂\n\nWishing you a fantastic birthday filled with joy and excitement! Keep reaching for the stars with us at *${appConfig.appName || "Smaartus Classes"}*! 🌟`;
+      const m1 = `🧮 *[${appName}*] Monthly Progress Update*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\nWe are pleased to inform you that *${s.firstName}* has successfully completed Month ${completedMonths} of ${config.baseMonth} for ${s.course} (${s.level}).\n\nThank you for your continued support!\n*${appName}*`;
+      const m2 = `📋 *[${appName}] Extension Fee Notice*\n\nDear Parent of *${s.firstName} ${s.surname}*,\n\nThis is a friendly reminder that *${s.firstName}* has entered Extension Month ${overdueMonths || 1} for ${s.course}.\n\n*Extension Fee Due:* ₹${config.extFee}\n\nPlease settle the fee at your earliest convenience to continue seamless learning.\n\nThank you,\n*${appName}*`;
+      const m3 = `🎉 *Happy Birthday, ${s.firstName}!* 🎂\n\nWishing you a fantastic birthday filled with joy and excitement! Keep reaching for the stars with us at *${appName}*! 🌟`;
 
       container.innerHTML = `
         <button onclick="triggerWA('${s.mobile}', \`${encodeURIComponent(m1)}\`)" class="w-full text-left p-3 border border-slate-700/80 rounded-xl text-xs hover:bg-slate-700/50 transition">
@@ -1646,7 +1630,21 @@
         </button>
       `;
 
-      document.getElementById('waMsgModal').classList.remove('hidden');
+      const modalElem = document.getElementById('waMsgModal');
+      if(modalElem) modalElem.classList.remove('hidden');
+    }
+
+    function closeWaMsgModal() {
+      const modalElem = document.getElementById('waMsgModal');
+      if(modalElem) modalElem.classList.add('hidden');
+    }
+
+    function triggerWA(phone, encodedText) {
+      if(!phone) {
+        alert('Mobile number not available for this student.');
+        return;
+      }
+      window.open(`https://wa.me/91${phone}?text=${encodedText}`, '_blank');
     }
 
     function closeWaMsgModal() {
