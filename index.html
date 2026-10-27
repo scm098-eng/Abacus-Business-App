@@ -271,6 +271,13 @@
           </div>
         </div>
 
+        <div class="bg-slate-800/60 p-3 rounded-2xl border border-slate-700/50">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+            <input type="text" id="ledgerSearchInput" placeholder="Filter ledger by student name or details..." oninput="renderLedger()" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+          </div>
+        </div>        
+
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl overflow-hidden shadow-xl">
           <div class="overflow-x-auto max-h-[60vh] overflow-y-auto">
             <table class="w-full text-left text-sm text-slate-300">
@@ -830,10 +837,13 @@
         </div>
       </div>
 
-      <div class="flex justify-end space-x-2 pt-2">
+      <div class="flex flex-col sm:flex-row justify-end gap-2 pt-2">
         <button onclick="closePromoteModal()" class="px-4 py-2 rounded-xl bg-slate-700 text-slate-300 text-xs">Cancel</button>
-        <button onclick="executePromotion()" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center space-x-1">
-          <span>🎓 Confirm & Request Fee</span>
+        <button onclick="executePromotionConfirmOnly()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition">
+          ✓ Confirm Promotion
+        </button>
+        <button onclick="executePromotionRequestFeeOnly()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition">
+          💬 Request Fee (WhatsApp)
         </button>
       </div>
     </div>
@@ -870,9 +880,10 @@
 
         <div id="studentSelectorContainer" class="space-y-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/60">
           <div>
-            <label class="block text-indigo-300 font-semibold mb-1">Select Student *</label>
-            <select id="ledgerStudentSelect" onchange="autofillStudentFeeDetails()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white">
-              <!-- Populated Dynamically -->
+            <label class="block text-indigo-300 font-semibold mb-1">Select Student (Searchable) *</label>
+            <input type="text" id="ledgerStudentSearch" placeholder="Type student name to search..." oninput="filterLedgerStudentDropdown()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white mb-2" />
+            <select id="ledgerStudentSelect" size="4" onchange="autofillStudentFeeDetails()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white">
+              <!-- Populated Dynamically A to Z -->
             </select>
           </div>
 
@@ -1442,41 +1453,43 @@
     }
 
     function calculateStudentFeeStatus(s) {
-  const completedMonths = calculateCompletedMonths(s.startDate);
-  const config = getCourseFees(s.course);
-  const currentLevelNum = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
-  const isGraduated = currentLevelNum > (config.totalLevels || 8);
+      const completedMonths = calculateCompletedMonths(s.startDate);
+      const config = getCourseFees(s.course);
+      const currentLevelNum = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
+      const isGraduated = currentLevelNum > (config.totalLevels || 8);
 
-  // 1. Count Waived Months (Amount = 0 or category = Fee Waiver / Adjustment)
-  const waivedEntries = ledger.filter(t => t.studentId === s.id && (t.category === 'Fee Waiver / Adjustment' || (t.notes && t.notes.toLowerCase().includes('waiv'))));
-  const totalWaivedMonths = waivedEntries.length;
+      // Count Waived Months from Ledger
+      const waivedEntries = ledger.filter(t => t.studentId === s.id && (t.category === 'Fee Waiver / Adjustment' || (t.notes && t.notes.toLowerCase().includes('waiv'))));
+      let totalWaivedMonths = 0;
+      waivedEntries.forEach(w => {
+        const matchM = (w.notes || '').match(/(\d+)\s+Month/i);
+        totalWaivedMonths += matchM ? parseInt(matchM[1]) : 1;
+      });
 
-  // 2. Count Paid Extension Months from Ledger (Amount > 0)
-  const paidExtEntries = ledger.filter(t => t.studentId === s.id && t.category === 'Extension Monthly Fee' && t.amount > 0);
-  // Calculate total extension months paid based on total paid amount / monthly rate
-  const totalPaidExtAmount = paidExtEntries.reduce((sum, t) => sum + (t.amount || 0), 0);
-  const monthlyExtRate = config.extFee || 1000;
-  const totalPaidExtMonths = Math.floor(totalPaidExtAmount / monthlyExtRate);
+      // Count Paid Extension Months from Ledger
+      const paidExtEntries = ledger.filter(t => t.studentId === s.id && (t.category === 'Extension Monthly Fee' || (t.notes && t.notes.toLowerCase().includes('extension fee paid'))) && t.amount > 0);
+      let totalPaidExtMonths = 0;
+      paidExtEntries.forEach(p => {
+        const matchM = (p.notes || '').match(/(\d+)\s+Month/i);
+        totalPaidExtMonths += matchM ? parseInt(matchM[1]) : Math.floor(p.amount / (config.extFee || 1000));
+      });
 
-  // 3. Total Covered Duration = Base Months + Waived Months + Paid Extension Months
-  const totalCoveredMonths = config.baseMonth + totalWaivedMonths + totalPaidExtMonths;
+      const totalCoveredMonths = config.baseMonth + totalWaivedMonths + totalPaidExtMonths;
+      const netOverdueMonths = Math.max(0, completedMonths - totalCoveredMonths);
+      const isExtension = !isGraduated && (completedMonths > (config.baseMonth + totalWaivedMonths));
 
-  // 4. Calculate Net Overdue Pending Months
-  const netOverdueMonths = Math.max(0, completedMonths - totalCoveredMonths);
-  const isExtension = !isGraduated && (completedMonths > (config.baseMonth + totalWaivedMonths));
-
-  return {
-    completedMonths,
-    config,
-    isGraduated,
-    hasWaivedFee: totalWaivedMonths > 0,
-    totalWaivedMonths,
-    totalPaidExtMonths,
-    totalCoveredMonths,
-    isExtension,
-    overdueMonths: netOverdueMonths // Reflects actual unpaid extension months
-  };
-}
+      return {
+        completedMonths,
+        config,
+        isGraduated,
+        hasWaivedFee: totalWaivedMonths > 0,
+        totalWaivedMonths,
+        totalPaidExtMonths,
+        totalCoveredMonths,
+        isExtension,
+        overdueMonths: netOverdueMonths
+      };
+    }
 
     /* --- NAVIGATION --- */
     function switchTab(tabName) {
@@ -1517,6 +1530,9 @@
         return matchesSearch && matchesBranch && matchesCourse;
       });
 
+      // Sort A to Z by First Name
+      filtered.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+      
       if (filtered.length === 0) {
         grid.innerHTML = `
           <div class="col-span-full py-12 text-center text-slate-400">
@@ -1803,7 +1819,26 @@
       document.getElementById('promoteModal').classList.add('hidden');
     }
 
-    function executePromotion() {
+    function executePromotionConfirmOnly() {
+      const s = students.find(x => x.id === promoteTargetId);
+      if (!s) return;
+
+      const nextLevel = document.getElementById('promoteNextLevelSelect').value;
+      const today = getTodayYYYYMMDD();
+
+      s.level = nextLevel;
+      s.startDate = today;
+
+      saveLocalState();
+      db.collection("students").doc(s.id).set(s).catch(err => console.error(err));
+
+      closePromoteModal();
+      renderStudents();
+      generateAllReports();
+      showToast(`${s.firstName} promoted to ${nextLevel}!`);
+    }
+
+    function executePromotionRequestFeeOnly() {
       const s = students.find(x => x.id === promoteTargetId);
       if (!s) return;
 
@@ -1814,29 +1849,14 @@
       s.level = nextLevel;
       s.startDate = today;
 
-      const incomeItem = {
-        id: 'TRX-' + Date.now(),
-        date: today,
-        type: 'Income',
-        category: 'Base Course Fee',
-        amount: feeAmount,
-        studentId: s.id,
-        notes: `${s.firstName} ${s.surname} - ${s.course} (${nextLevel}) - ${s.branch}`
-      };
-
-      ledger.unshift(incomeItem);
       saveLocalState();
-
-      // Sync updated student and ledger entry to Firestore
       db.collection("students").doc(s.id).set(s).catch(err => console.error(err));
-      db.collection("ledger").doc(incomeItem.id).set(incomeItem).catch(err => console.error(err));
 
       closePromoteModal();
       renderStudents();
-      renderLedger();
       generateAllReports();
 
-      const msg = `🎉 *[${appConfig.appName || "Smaartus Classes"}] Promotion & Fee Notice*\n\nDear Parent,\n\nCongratulations! *${s.firstName}* has been promoted to *${nextLevel}*.\n\n• *Course Fee for ${nextLevel}:* ₹${feeAmount}\n\nKindly process the payment at your earliest convenience to confirm enrollment.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
+      const msg = `🎉 *[${appConfig.appName || "Smaartus Classes"}] Level Promotion & Fee Request*\n\nDear Parent,\n\nCongratulations! *${s.firstName}* has been promoted to *${nextLevel}*.\n\n• *Course Fee for ${nextLevel}:* ₹${feeAmount}\n\nKindly process the payment at your earliest convenience to confirm enrollment.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
       window.open(`https://wa.me/91${s.mobile}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
@@ -1888,7 +1908,18 @@
     /* --- LEDGER --- */
     function renderLedger() {
       const tbody = document.getElementById('ledgerTableBody');
+      const searchVal = document.getElementById('ledgerSearchInput')?.value.toLowerCase() || '';
+      if (!tbody) return;
       tbody.innerHTML = '';
+
+      // Sort Ledger by Date descending (Latest first)
+      let sortedLedger = [...ledger].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+      const filtered = sortedLedger.filter(item => {
+        const notes = (item.notes || '').toLowerCase();
+        const category = (item.category || '').toLowerCase();
+        return notes.includes(searchVal) || category.includes(searchVal);
+      });
 
       ledger.forEach(item => {
         const tr = document.createElement('tr');
@@ -1925,17 +1956,39 @@
       });
 
       // Income Student Selector Options (All Students)
-      const stdSelect = document.getElementById('ledgerStudentSelect');
-      stdSelect.innerHTML = `<option value="">-- Choose Student --</option>`;
-      students.forEach(s => {
-        stdSelect.innerHTML += `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch})</option>`;
-      });
-
       if (!editId) {
         document.getElementById('ledgerAmount').value = '';
         document.getElementById('ledgerDate').value = getTodayYYYYMMDD();
         document.getElementById('ledgerNotes').value = '';
+        if (document.getElementById('ledgerStudentSearch')) document.getElementById('ledgerStudentSearch').value = '';
       }
+
+      populateLedgerStudentDropdowns();
+      function populateLedgerStudentDropdowns(searchQuery = '') {
+      const stdSelect = document.getElementById('ledgerStudentSelect');
+      const waiveStdSelect = document.getElementById('ledgerWaiveStudentSelect');
+      if (!stdSelect || !waiveStdSelect) return;
+
+      // Sort students A to Z
+      let sortedStudents = [...students].sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+      if (searchQuery) {
+        sortedStudents = sortedStudents.filter(s => `${s.firstName} ${s.surname}`.toLowerCase().includes(searchQuery.toLowerCase()));
+      }
+
+      stdSelect.innerHTML = '';
+      waiveStdSelect.innerHTML = '';
+
+      sortedStudents.forEach(s => {
+        const optionHTML = `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch} - ${s.course})</option>`;
+        stdSelect.innerHTML += optionHTML;
+        waiveStdSelect.innerHTML += optionHTML;
+      });
+    }
+
+    function filterLedgerStudentDropdown() {
+      const query = document.getElementById('ledgerStudentSearch')?.value || '';
+      populateLedgerStudentDropdowns(query);
+    }
 
       handleLedgerCategoryChange();
       document.getElementById('ledgerModal').classList.remove('hidden');
