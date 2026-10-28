@@ -172,10 +172,7 @@
         <button onclick="openNotificationModal()" class="p-2 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-300 relative" title="Notifications">
           <i data-lucide="bell" class="w-5 h-5 text-amber-400"></i>
           <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping"></span>
-        </button>
-        <button onclick="exportBackupData()" class="p-2 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-300" title="Export Backup Data CSV">
-          <i data-lucide="download" class="w-5 h-5 text-emerald-400"></i>
-        </button>
+        </button>        
         <button onclick="handleSignOut()" class="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold flex items-center space-x-1 border border-rose-500/20" title="Sign Out">
           <i data-lucide="log-out" class="w-4 h-4"></i>
           <span class="hidden sm:inline">Sign Out</span>
@@ -184,9 +181,9 @@
     </header>
 
     <!-- Main Body Area -->
-    <main class="flex-1 overflow-y-auto p-4 md:p-6 pb-32">
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 pb-40">
       <!-- TAB 1: STUDENTS DIRECTORY -->
-      <section id="tab-students" class="space-y-4">
+      <section id="tab-students" class="space-y-4 mb-12">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 class="text-xl font-bold text-white">Student Directory</h2>
@@ -640,6 +637,13 @@
           <div>
             <label class="block text-slate-400 mb-1">Application Name / Title</label>
             <input type="text" id="settingAppName" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white" />
+          </div>
+
+          <div>
+            <label class="block text-slate-400 mb-1">Appearance & Theme</label>
+            <button type="button" onclick="toggleTheme()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition">
+              <span>🌓 Toggle Dark / Light Theme</span>
+            </button>
           </div>
 
           <!-- GOOGLE SIGN-IN ACCOUNT STATUS -->           
@@ -1856,7 +1860,8 @@
       renderStudents();
       generateAllReports();
 
-      const msg = `🎉 *[${appConfig.appName || "Smaartus Classes"}] Level Promotion & Fee Request*\n\nDear Parent,\n\nCongratulations! *${s.firstName}* has been promoted to *${nextLevel}*.\n\n• *Course Fee for ${nextLevel}:* ₹${feeAmount}\n\nKindly process the payment at your earliest convenience to confirm enrollment.\n\nThank you,\n*${appConfig.appName || "Smaartus Classes"}*`;
+      const customTitle = (typeof appConfig !== 'undefined' && appConfig.appName) ? appConfig.appName : "Smaartus Operations";
+      const msg = `🎉 *[${customTitle}] Level Promotion & Fee Request*\n\nDear Parent,\n\nCongratulations! *${s.firstName}* has been promoted to *${nextLevel}*.\n\n• *Course Fee for ${nextLevel}:* ₹${feeAmount}\n\nKindly process the payment at your earliest convenience to confirm enrollment.\n\nThank you,\n*${customTitle}*`;
       window.open(`https://wa.me/91${s.mobile}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
@@ -1912,13 +1917,19 @@
       if (!tbody) return;
       tbody.innerHTML = '';
 
-      // Sort Ledger by Date descending (Latest first)
-      let sortedLedger = [...ledger].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      // Robust Sort Ledger by Date descending (Latest on top)
+      let sortedLedger = [...ledger].sort((a, b) => {
+        const timeA = new Date(formatDateToYYYYMMDD(a.date) || a.date || 0).getTime();
+        const timeB = new Date(formatDateToYYYYMMDD(b.date) || b.date || 0).getTime();
+        return timeB - timeA;
+      });
 
       const filtered = sortedLedger.filter(item => {
         const notes = (item.notes || '').toLowerCase();
         const category = (item.category || '').toLowerCase();
-        return notes.includes(searchVal) || category.includes(searchVal);
+        const student = students.find(s => s.id === item.studentId);
+        const studentName = student ? `${student.firstName} ${student.surname}`.toLowerCase() : '';
+        return notes.includes(searchVal) || category.includes(searchVal) || studentName.includes(searchVal);
       });
 
       ledger.forEach(item => {
@@ -2135,7 +2146,19 @@
       const txId = document.getElementById('ledgerTxId').value;
       const type = document.getElementById('ledgerType').value;
       let category = document.getElementById('ledgerCategory').value; // Changed to 'let' to allow re-assignment
-      let stdId = document.getElementById('ledgerStudentSelect').value;
+      
+      // Correctly assign student ID based on form context (Income vs Expense/Waiver)
+      let stdId = null;
+      if (type === 'Income') {
+        stdId = document.getElementById('ledgerStudentSelect')?.value || null;
+      } else {
+        if (category === 'Fee Waiver / Adjustment') {
+          stdId = document.getElementById('ledgerWaiveStudentSelect')?.value || null;
+        } else {
+          stdId = document.getElementById('ledgerExpenseStudentSelect')?.value || null;
+        }
+      }
+
       let noteDetails = document.getElementById('ledgerNotes').value;
 
       // --- 1. INCOME HANDLING ---
@@ -2152,14 +2175,12 @@
         const branchVal = document.getElementById('ledgerExpenseBranch').value;
 
         if (category === 'Fee Waiver / Adjustment') {
-          stdId = document.getElementById('ledgerWaiveStudentSelect').value;
           const months = document.getElementById('ledgerWaiveMonths').value || 1;
           const targetStudent = students.find(s => s.id === stdId);
           if (targetStudent) {
             noteDetails = `Fee Waived (${months} Month${months > 1 ? 's' : ''}) for ${targetStudent.firstName} ${targetStudent.surname} (${targetStudent.course} - ${branchVal})`;
           }
         } else if (category.includes('Kit') || category.includes('Book') || category.includes('Registration')) {
-          stdId = document.getElementById('ledgerExpenseStudentSelect').value;
           const targetStudent = students.find(s => s.id === stdId);
           if (targetStudent) {
             noteDetails = `${category} expense for ${targetStudent.firstName} ${targetStudent.surname} (${targetStudent.course} - ${branchVal})`;
@@ -2172,10 +2193,10 @@
       const itemData = {
         id: txId || ('TRX-' + Date.now()),
         date: document.getElementById('ledgerDate').value,
-        type: type,
+        type: category === 'Fee Waiver / Adjustment' ? 'Expense' : type,
         category: category,
         amount: parseFloat(document.getElementById('ledgerAmount').value) || 0,
-        studentId: stdId || null,
+        studentId: stdId,
         notes: noteDetails
       };
 
@@ -2368,7 +2389,7 @@
               <td class="p-2 text-amber-400 font-medium">${overdueMonths} Month(s)</td>
               <td class="p-2 font-bold text-rose-400">₹${dueAmt}</td>
               <td class="p-2 text-right">
-                <button onclick="triggerWA('${s.mobile}', \`${encodeURIComponent(`Extension fee due for ${s.firstName}: ₹${dueAmt}`)}\`)" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded-md text-[10px] font-bold shadow transition">
+                <button onclick="triggerWA('${s.mobile}', \`${encodeURIComponent(`*[${appConfig.appName || "Smaartus Operations"}] Extension Fee Notice*\n\nDear Parent, extension fee due for *${s.firstName}*: ₹${overdueMonths * config.extFee}\n\nPlease clear dues at your earliest convenience.\n\nThank you,\n*${appConfig.appName || "Smaartus Operations"}*`)}\`)" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px]">
                   WhatsApp Fee
                 </button>
               </td>
