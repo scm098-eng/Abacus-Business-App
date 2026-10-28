@@ -166,9 +166,6 @@
         <button onclick="openAdminSettingsModal()" class="p-2 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center space-x-1" title="Admin Settings">
           <span>⚙️ Settings</span>
         </button>
-        <button onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center space-x-1" title="Toggle Theme">
-          <span>🌓 Theme</span>
-        </button>
         <button onclick="openNotificationModal()" class="p-2 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-300 relative" title="Notifications">
           <i data-lucide="bell" class="w-5 h-5 text-amber-400"></i>
           <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping"></span>
@@ -1932,7 +1929,7 @@
         return notes.includes(searchVal) || category.includes(searchVal) || studentName.includes(searchVal);
       });
 
-      ledger.forEach(item => {
+      filtered.forEach(item => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-700/30 transition text-xs";
         tr.innerHTML = `
