@@ -758,8 +758,12 @@
             <input type="text" id="ageDisplay" readonly placeholder="Auto calculated" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-indigo-400 font-semibold" />
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">School Name</label>
-            <input type="text" id="school" placeholder="School Name" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white" />
+            <label class="block text-slate-400 mb-1">School Name *</label>
+            <select id="schoolSelect" onchange="handleSchoolDropdownChange()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white mb-1">
+              <!-- Populated dynamically -->
+            </select>
+            <input type="text" id="schoolCustomInput" placeholder="Or type new school name..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white hidden" />
+            <input type="hidden" id="school" />
           </div>
         </div>
 
@@ -881,11 +885,13 @@
 
         <div id="studentSelectorContainer" class="space-y-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/60">
           <div>
-            <label class="block text-indigo-300 font-semibold mb-1">Select Student (Searchable) *</label>
-            <input type="text" id="ledgerStudentSearch" placeholder="Type student name to search..." oninput="filterLedgerStudentDropdown()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white mb-2" />
-            <select id="ledgerStudentSelect" size="4" onchange="autofillStudentFeeDetails()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white">
-              <!-- Populated Dynamically A to Z -->
-            </select>
+            <label class="block text-indigo-300 font-semibold mb-1">Select Student *</label>
+            <div class="space-y-1.5">
+              <input type="text" id="ledgerStudentSearch" placeholder="🔍 Type to filter student name..." oninput="filterLedgerStudentDropdown()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
+              <select id="ledgerStudentSelect" onchange="autofillStudentFeeDetails()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs">
+                <!-- Populated Dynamically A to Z -->
+              </select>
+            </div>
           </div>
 
           <!-- EXTENSION FEE SPECIFIC CONFIGURATION -->
@@ -1278,6 +1284,47 @@
         levelSelect.innerHTML += `<option value="Level ${i}">Level ${i}</option>`;
       }
       levelSelect.innerHTML += `<option value="Level ${totalLevels + 1} (Graduated)">Graduated / Course Completed</option>`;
+    }
+
+    function populateSchoolDropdown(selectedSchool = '') {
+      const selectElem = document.getElementById('schoolSelect');
+      const customInput = document.getElementById('schoolCustomInput');
+      if (!selectElem) return;
+
+      const uniqueSchools = [...new Set(students.map(s => s.school).filter(Boolean))].sort();
+      
+      selectElem.innerHTML = `<option value="">-- Select School --</option>`;
+      uniqueSchools.forEach(sch => {
+        selectElem.innerHTML += `<option value="${sch}">${sch}</option>`;
+      });
+      selectElem.innerHTML += `<option value="ADD_NEW">+ Add New School...</option>`;
+
+      if (selectedSchool && uniqueSchools.includes(selectedSchool)) {
+        selectElem.value = selectedSchool;
+        customInput.classList.add('hidden');
+        customInput.value = '';
+      } else if (selectedSchool) {
+        selectElem.value = 'ADD_NEW';
+        customInput.classList.remove('hidden');
+        customInput.value = selectedSchool;
+      } else {
+        selectElem.value = '';
+        customInput.classList.add('hidden');
+        customInput.value = '';
+      }
+    }
+
+    function handleSchoolDropdownChange() {
+      const selectElem = document.getElementById('schoolSelect');
+      const customInput = document.getElementById('schoolCustomInput');
+      if (selectElem.value === 'ADD_NEW') {
+        customInput.classList.remove('hidden');
+        customInput.value = '';
+        customInput.focus();
+      } else {
+        customInput.classList.add('hidden');
+        customInput.value = selectElem.value;
+      }
     }
 
     function toggleTheme() {
@@ -1710,6 +1757,7 @@
       }
 
       updateModalLevelOptions();
+      populateSchoolDropdown();
       document.getElementById('studentModal').classList.remove('hidden');
     }
 
@@ -1725,6 +1773,10 @@
       document.querySelectorAll('.student-custom-input').forEach(inp => {
         customDataObj[inp.dataset.customfield] = inp.value;
       });
+
+      const selectSch = document.getElementById('schoolSelect').value;
+      const customSch = document.getElementById('schoolCustomInput').value.trim();
+      const finalSchool = selectSch === 'ADD_NEW' ? customSch : selectSch;
 
       const newStudent = {
         id: id,
@@ -1770,7 +1822,7 @@
       document.getElementById('surname').value = s.surname;
       document.getElementById('mobile').value = s.mobile;
       document.getElementById('dob').value = s.dob;
-      document.getElementById('school').value = s.school || '';
+      populateSchoolDropdown(s.school || '');
       document.getElementById('branch').value = s.branch;
       document.getElementById('course').value = s.course;
       
@@ -1989,14 +2041,14 @@
       const waiveStdSelect = document.getElementById('ledgerWaiveStudentSelect');
       if (!stdSelect || !waiveStdSelect) return;
 
-      // Sort students A to Z
       let sortedStudents = [...students].sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
       if (searchQuery) {
         sortedStudents = sortedStudents.filter(s => `${s.firstName} ${s.surname}`.toLowerCase().includes(searchQuery.toLowerCase()));
       }
 
-      stdSelect.innerHTML = '';
-      waiveStdSelect.innerHTML = '';
+      const defaultOption = `<option value="">-- Choose Student --</option>`;
+      stdSelect.innerHTML = defaultOption;
+      waiveStdSelect.innerHTML = defaultOption;
 
       sortedStudents.forEach(s => {
         const optionHTML = `<option value="${s.id}">${s.firstName} ${s.surname} (${s.branch} - ${s.course})</option>`;
