@@ -1459,16 +1459,28 @@
       const currentLevelNum = parseInt((s.level || '1').replace(/\D/g, '')) || 1;
       const isGraduated = currentLevelNum > (config.totalLevels || 8);
 
-      // Count Waived Months from Ledger
-      const waivedEntries = ledger.filter(t => t.studentId === s.id && (t.category === 'Fee Waiver / Adjustment' || (t.notes && t.notes.toLowerCase().includes('waiv'))));
+      // Count Waived Months from Ledger (matching by studentId OR student name in notes)
+      const waivedEntries = ledger.filter(t => {
+        const matchesId = t.studentId === s.id;
+        const matchesName = t.notes && (t.notes.includes(s.firstName) || t.notes.includes(s.surname));
+        const isWaiverCat = t.category === 'Fee Waiver / Adjustment' || (t.notes && t.notes.toLowerCase().includes('waiv'));
+        return (matchesId || matchesName) && isWaiverCat;
+      });
+
       let totalWaivedMonths = 0;
       waivedEntries.forEach(w => {
         const matchM = (w.notes || '').match(/(\d+)\s+Month/i);
         totalWaivedMonths += matchM ? parseInt(matchM[1]) : 1;
       });
 
-      // Count Paid Extension Months from Ledger
-      const paidExtEntries = ledger.filter(t => t.studentId === s.id && (t.category === 'Extension Monthly Fee' || (t.notes && t.notes.toLowerCase().includes('extension fee paid'))) && t.amount > 0);
+      // Count Paid Extension Months from Ledger (matching by studentId OR student name in notes)
+      const paidExtEntries = ledger.filter(t => {
+        const matchesId = t.studentId === s.id;
+        const matchesName = t.notes && (t.notes.includes(s.firstName) || t.notes.includes(s.surname));
+        const isExtCat = t.category === 'Extension Monthly Fee' || (t.notes && t.notes.toLowerCase().includes('extension'));
+        return (matchesId || matchesName) && isExtCat && t.amount > 0;
+      });
+
       let totalPaidExtMonths = 0;
       paidExtEntries.forEach(p => {
         const matchM = (p.notes || '').match(/(\d+)\s+Month/i);
