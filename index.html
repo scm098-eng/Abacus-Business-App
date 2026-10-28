@@ -678,6 +678,28 @@
           </div>
         </div>
 
+        <!-- SCHOOL NAME MERGER & CLEANUP -->
+        <div class="space-y-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
+          <h4 class="font-semibold text-indigo-400 uppercase text-[11px] tracking-wider">School Name Merger & Cleanup</h4>
+          <p class="text-[11px] text-slate-400">Merge duplicate or old school name entries into a single standardized name.</p>
+          
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-slate-400 mb-1">Old School Name (From)</label>
+              <select id="mergeOldSchool" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs">
+                <!-- Dynamic -->
+              </select>
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">Standardized School Name (To)</label>
+              <input type="text" id="mergeNewSchool" placeholder="Type correct school name..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs" />
+            </div>
+          </div>
+          <button type="button" onclick="executeSchoolMerge()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded-lg text-xs transition">
+            🔗 Merge School Records Across All Students
+          </button>
+        </div>
+
         <!-- CUSTOM CATEGORIES MANAGER -->
         <div class="space-y-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/50">
           <h4 class="font-semibold text-indigo-400 uppercase text-[11px] tracking-wider">Manage Transaction Categories</h4>
@@ -762,7 +784,7 @@
             <select id="schoolSelect" onchange="handleSchoolDropdownChange()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white mb-1">
               <!-- Populated dynamically -->
             </select>
-            <input type="text" id="schoolCustomInput" placeholder="Or type new school name..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white hidden" />
+            <input type="text" id="schoolCustomInput" placeholder="Or type new school name..." oninput="document.getElementById('school').value = this.value" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white hidden" />
             <input type="hidden" id="school" />
           </div>
         </div>
@@ -1286,6 +1308,42 @@
       levelSelect.innerHTML += `<option value="Level ${totalLevels + 1} (Graduated)">Graduated / Course Completed</option>`;
     }
 
+    function populateSchoolMergerDropdown() {
+      const selectElem = document.getElementById('mergeOldSchool');
+      if (!selectElem) return;
+      const uniqueSchools = [...new Set(students.map(s => s.school).filter(Boolean))].sort();
+      selectElem.innerHTML = `<option value="">-- Select School to Merge --</option>`;
+      uniqueSchools.forEach(sch => {
+        selectElem.innerHTML += `<option value="${sch}">${sch}</option>`;
+      });
+    }
+
+    function executeSchoolMerge() {
+      const oldName = document.getElementById('mergeOldSchool').value;
+      const newName = document.getElementById('mergeNewSchool').value.trim();
+
+      if (!oldName || !newName) {
+        alert("Please select an old school name and type the target standardized school name.");
+        return;
+      }
+
+      if (confirm(`Are you sure you want to merge all students from "${oldName}" into "${newName}"?`)) {
+        let count = 0;
+        students.forEach(s => {
+          if (s.school === oldName) {
+            s.school = newName;
+            count++;
+            db.collection("students").doc(s.id).set(s).catch(err => console.error(err));
+          }
+        });
+
+        saveLocalState();
+        renderStudents();
+        populateSchoolMergerDropdown();
+        showToast(`Successfully merged ${count} student records into "${newName}"!`);
+      }
+    }
+
     function populateSchoolDropdown(selectedSchool = '') {
       const selectElem = document.getElementById('schoolSelect');
       const customInput = document.getElementById('schoolCustomInput');
@@ -1317,13 +1375,17 @@
     function handleSchoolDropdownChange() {
       const selectElem = document.getElementById('schoolSelect');
       const customInput = document.getElementById('schoolCustomInput');
+      const hiddenSchool = document.getElementById('school');
+      
       if (selectElem.value === 'ADD_NEW') {
         customInput.classList.remove('hidden');
         customInput.value = '';
+        hiddenSchool.value = '';
         customInput.focus();
       } else {
         customInput.classList.add('hidden');
         customInput.value = selectElem.value;
+        hiddenSchool.value = selectElem.value;
       }
     }
 
@@ -1776,7 +1838,7 @@
 
       const selectSch = document.getElementById('schoolSelect').value;
       const customSch = document.getElementById('schoolCustomInput').value.trim();
-      const finalSchool = selectSch === 'ADD_NEW' ? customSch : selectSch;
+      const finalSchool = selectSch === 'ADD_NEW' ? customSch : (selectSch || customSch);
 
       const newStudent = {
         id: id,
@@ -1785,7 +1847,7 @@
         surname: document.getElementById('surname').value,
         mobile: document.getElementById('mobile').value,
         dob: document.getElementById('dob').value,
-        school: document.getElementById('school').value,
+        school: finalSchool,
         branch: document.getElementById('branch').value,
         course: document.getElementById('course').value,
         level: document.getElementById('levelSelect').value,
