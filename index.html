@@ -2484,7 +2484,11 @@
 
       const topSchoolsDiv = document.getElementById('topSchoolsList');
       topSchoolsDiv.innerHTML = '';
-      Object.entries(schoolCounts).slice(0, 4).forEach(([schoolName, cnt]) => {
+      
+      // Sort schools from highest student count to lowest (top to bottom)
+      const sortedSchools = Object.entries(schoolCounts).sort((a, b) => b[1] - a[1]);
+
+      sortedSchools.forEach(([schoolName, cnt]) => {
         topSchoolsDiv.innerHTML += `
           <div class="flex justify-between items-center bg-slate-900/40 p-2 rounded-lg border border-slate-700/30">
             <span class="text-slate-300 font-medium">${schoolName}</span>
