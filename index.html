@@ -1311,8 +1311,12 @@
     function populateSchoolMergerDropdown() {
       const selectElem = document.getElementById('mergeOldSchool');
       if (!selectElem) return;
-      const uniqueSchools = [...new Set(students.map(s => s.school).filter(Boolean))].sort();
-      selectElem.innerHTML = `<option value="">-- Select School to Merge --</option>`;
+      
+      // Gather all unique school names from students database (checking multiple fallback properties)
+      const rawSchools = students.map(s => s.school || s.schoolName || (s.customData && (s.customData['School'] || s.customData['School Name']))).filter(Boolean);
+      const uniqueSchools = [...new Set(rawSchools)].sort((a, b) => a.localeCompare(b));
+      
+      selectElem.innerHTML = `<option value="">-- Select School to Merge (${uniqueSchools.length} found) --</option>`;
       uniqueSchools.forEach(sch => {
         selectElem.innerHTML += `<option value="${sch}">${sch}</option>`;
       });
