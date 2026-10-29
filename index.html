@@ -1312,11 +1312,11 @@
       const selectElem = document.getElementById('mergeOldSchool');
       if (!selectElem) return;
       
-      // Gather all unique school names from students database (checking multiple fallback properties)
-      const rawSchools = students.map(s => s.school || s.schoolName || (s.customData && (s.customData['School'] || s.customData['School Name']))).filter(Boolean);
+      // Gather unique school names from current student records
+      const rawSchools = students.map(s => s.school || s.schoolName || "").filter(Boolean);
       const uniqueSchools = [...new Set(rawSchools)].sort((a, b) => a.localeCompare(b));
       
-      selectElem.innerHTML = `<option value="">-- Select School to Merge (${uniqueSchools.length} found) --</option>`;
+      selectElem.innerHTML = `<option value="">-- Select School (${uniqueSchools.length} found) --</option>`;
       uniqueSchools.forEach(sch => {
         selectElem.innerHTML += `<option value="${sch}">${sch}</option>`;
       });
@@ -1406,7 +1406,14 @@
       renderAdminCourseMasterRows();
       renderCustomFieldsMasterRows();
       applyAppConfigUI();
+      
+      // Open modal first so DOM elements exist
       document.getElementById('adminSettingsModal').classList.remove('hidden');
+      
+      // Populate school dropdown with a short timeout to guarantee DOM readiness
+      setTimeout(() => {
+        populateSchoolMergerDropdown();
+      }, 50);
     }
 
     function closeAdminSettingsModal() {
